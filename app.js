@@ -605,7 +605,7 @@
   // Примеры: Tatoeba — реальные предложения с русским переводом.
   const lookupCache = new Map();
   const POS_RU = { Noun: 'сущ.', Verb: 'гл.', Adjective: 'прил.', Adverb: 'нареч.', Phrase: 'выраж.', Idiom: 'идиома', Preposition: 'предл.', Conjunction: 'союз', 'Prepositional phrase': 'выраж.', Interjection: 'межд.', Pronoun: 'мест.' };
-  const cleanRu = (t) => String(t).replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g, '$1').normalize('NFD').replace(/[̀́]/g, '').normalize('NFC').trim();
+  const cleanRu = (t) => String(t).replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g, '$1').normalize('NFD').replace(/[̀́]/g, '').normalize('NFC').replace(/\s+/g, ' ').trim();
   function parseTrans(en) {
     const out = [];
     let gloss = null;
@@ -676,7 +676,7 @@
     const list = (d.data || []).map((x) => {
       const tr = [].concat(x.translations || []).flat().find((y) => y && y.lang === 'rus');
       return { en: x.text, ru: tr ? tr.text : '' };
-    }).filter((x) => x.ru && x.en.length <= 140);
+    }).filter((x) => x.ru && x.en.length <= 110);
     const re = formsRe(base);
     const exact = list.filter((x) => re.test(x.en));
     const pool = (exact.length ? exact : list).sort((a, b) => Math.abs(a.en.length - 55) - Math.abs(b.en.length - 55));
@@ -698,7 +698,7 @@
       const all = [];
       wiki.senses.slice(0, 8).forEach((s) => s.ru.forEach((r) => { if (!all.includes(r)) all.push(r); }));
       const pick = [];
-      wiki.senses.slice(0, 4).forEach((s, i) => s.ru.slice(0, i === 0 ? 2 : 1).forEach((r) => { if (!pick.includes(r) && pick.length < 3) pick.push(r); }));
+      wiki.senses.slice(0, 4).forEach((s, i) => s.ru.slice(0, i === 0 ? 2 : 1).forEach((r) => { if (!pick.includes(r) && pick.length < 3 && (pick.join(', ') + r).length <= 48) pick.push(r); }));
       if (pick.length) { res.tr = pick; res.options = all.slice(0, 8); res.source = 'Wiktionary'; }
     }
     if (!res.tr.length) {
