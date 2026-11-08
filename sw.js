@@ -1,5 +1,5 @@
 /* Офлайн-режим: оболочка приложения из кэша, words.json — сначала из сети, без сети из кэша. */
-const VERSION = 'mw-shell-v3';
+const VERSION = 'mw-shell-v4';
 const DATA = 'mw-data';
 const SHELL = [
   './',
