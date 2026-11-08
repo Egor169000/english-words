@@ -2,7 +2,8 @@
 /*
   Собирает Word-файл словаря из words.json.
   Использование: node tools/build_docx.js [words.json] [out.docx]
-  Нужен пакет docx (npm). Порядок — по дате добавления, слова сгруппированы по дням.
+  Нужен пакет docx (npm). Слова сгруппированы по темам (порядок тем — как в words.json → topics),
+  внутри темы — по дате добавления.
 */
 const fs = require('fs');
 const {
@@ -58,6 +59,20 @@ function headerRow() {
     })),
   });
 }
+function topicRow(t, n) {
+  return new TableRow({
+    cantSplit: true,
+    children: [new TableCell({
+      columnSpan: 4, borders, margins: { top: 90, bottom: 90, left: 110, right: 110 },
+      width: { size: TABLE_W, type: WidthType.DXA },
+      shading: { fill: BAND, type: ShadingType.CLEAR, color: 'auto' },
+      children: [P([
+        new TextRun({ text: t, bold: true, color: INK, font: SERIF, size: 22 }),
+        new TextRun({ text: '  ·  ' + n + ' ' + plural(n, ['слово', 'слова', 'слов']), color: MUTED, font: FONT, size: 18 }),
+      ])],
+    })],
+  });
+}
 function dateRow(d, n) {
   return new TableRow({
     cantSplit: true,
@@ -108,13 +123,15 @@ if (!n) {
   }));
 } else {
   const rows = [headerRow()];
-  let cur = null, num = 0;
-  const counts = {};
-  words.forEach((w) => { const d = (w.added || '').slice(0, 10); counts[d] = (counts[d] || 0) + 1; });
-  for (const w of words) {
-    const d = (w.added || '').slice(0, 10);
-    if (d !== cur) { cur = d; rows.push(dateRow(d, counts[d])); }
-    rows.push(wordRow(w, ++num));
+  const MISC = 'Разное', ESSAY = 'Слова для эссе';
+  const order = Array.isArray(data.topics) ? data.topics.slice() : [];
+  words.forEach((w) => { const t = w.topic || MISC; if (!order.includes(t)) { const i = order.indexOf(ESSAY); order.splice(i < 0 ? order.length : i, 0, t); } });
+  let num = 0;
+  for (const t of order) {
+    const g = words.filter((w) => (w.topic || MISC) === t);
+    if (!g.length) continue;
+    rows.push(topicRow(t, g.length));
+    for (const w of g) rows.push(wordRow(w, ++num));
   }
   children.push(new Table({ width: { size: TABLE_W, type: WidthType.DXA }, columnWidths: COLS, layout: TableLayoutType.FIXED, rows }));
 }

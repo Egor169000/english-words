@@ -6,7 +6,9 @@
     { "word": "ubiquitous", "ipa": "/juːˈbɪk.wɪ.təs/", "pos": "прил.",
       "tr": "вездесущий, повсеместный",
       "ex": "Smartphones have become *ubiquitous*.", "exRu": "Смартфоны стали повсеместными.",
-      "ctx": "где встретил (необязательно)", "note": "формы, синонимы (необязательно)", "id": "необязательно" }
+      "ctx": "где встретил (необязательно)", "note": "формы, синонимы (необязательно)", "id": "необязательно",
+      "topic": "Технологии и медиа", "essay": true (необязательно: слово годится для эссе на любую тему) }
+  Тема, которой ещё нет в списке topics, добавляется в него автоматически (перед «Слова для эссе»).
   Проверка дубликатов: слово, которое уже есть в words.json (без учёта регистра, «to» в начале
   и поля from), НЕ добавляется — скрипт пишет его в «Дубликаты» вместе с текущим переводом.
   Чтобы заменить старую запись новой, добавь в объект "replace": true — тогда запись обновится
@@ -17,7 +19,7 @@ const fs = require('fs');
 const [, , inFile, wordsFile = 'words.json'] = process.argv;
 if (!inFile) { console.error('Нужен файл с новыми словами'); process.exit(1); }
 
-const FIELDS = ['word', 'ipa', 'pos', 'tr', 'ex', 'exRu', 'ctx', 'note', 'from'];
+const FIELDS = ['word', 'ipa', 'pos', 'tr', 'ex', 'exRu', 'ctx', 'note', 'from', 'topic'];
 
 function moscowNow() {
   const d = new Date(Date.now() + 3 * 3600 * 1000);
@@ -41,6 +43,8 @@ data.words.forEach((w, i) => {
   if (w.from) String(w.from).split('|').forEach((f) => byKey.set(key(f), i));
 });
 const added = [], updated = [], dups = [], problems = [];
+if (!Array.isArray(data.topics)) data.topics = [];
+const topics = data.topics, newTopics = [], noTopic = [];
 const seen = new Set();
 
 for (const e of incoming) {
@@ -52,6 +56,9 @@ for (const e of incoming) {
   seen.add(k);
   const clean = {};
   for (const f of FIELDS) if (e[f] != null && String(e[f]).trim() !== '') clean[f] = String(e[f]).trim();
+  if (e.essay === true) clean.essay = true;
+  if (clean.topic && !topics.includes(clean.topic)) { topics.splice(Math.max(0, topics.indexOf('Слова для эссе')), 0, clean.topic); newTopics.push(clean.topic); }
+  if (!clean.topic && !e.replace) noTopic.push(e.word);
   let i = byKey.has('id:' + id) ? byKey.get('id:' + id) : byKey.get(k);
   if (i === undefined && e.from) String(e.from).split('|').some((f) => (i = byKey.get(key(f))) !== undefined);
   if (i !== undefined) {
@@ -69,10 +76,12 @@ for (const e of incoming) {
   }
 }
 
-data.updated = now.iso;
-fs.writeFileSync(wordsFile, JSON.stringify(data, null, 2) + '\n');
+const out = { updated: now.iso, topics, words: data.words };
+fs.writeFileSync(wordsFile, JSON.stringify(out, null, 2) + '\n');
 console.log('Добавлено: ' + added.length + (added.length ? ' — ' + added.join(', ') : ''));
 console.log('Обновлено: ' + updated.length + (updated.length ? ' — ' + updated.join(', ') : ''));
 if (dups.length) console.log('Дубликаты (не добавлены): ' + dups.length + '\n  ' + dups.join('\n  '));
+if (newTopics.length) console.log('Новые темы: ' + newTopics.join(', '));
+if (noTopic.length) console.log('Без темы (проставь topic): ' + noTopic.join(', '));
 console.log('Всего слов: ' + data.words.length);
 if (problems.length) { console.log('Пропущено (нет word или tr): ' + problems.join('; ')); process.exitCode = 2; }

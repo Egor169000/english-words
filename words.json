@@ -1,5 +1,21 @@
 {
   "updated": "2026-11-08T18:06:57+03:00",
+  "topics": [
+    "Технологии и медиа",
+    "Экономика, деньги и покупки",
+    "Работа и карьера",
+    "Учёба и наука",
+    "Общество, политика и право",
+    "Люди и отношения",
+    "Чувства и характер",
+    "Здоровье и спорт",
+    "Природа и экология",
+    "Город, дом и путешествия",
+    "Еда и рестораны",
+    "Культура: кино, книги, искусство",
+    "Слова для эссе",
+    "Разное"
+  ],
   "words": [
     {
       "id": "accessible",
@@ -9,7 +25,8 @@
       "tr": "доступный, легкодоступный",
       "ex": "Online courses make education more *accessible*.",
       "exRu": "Онлайн-курсы делают образование более доступным.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "digital-commerce",
@@ -19,7 +36,8 @@
       "tr": "цифровая торговля, онлайн-торговля",
       "ex": "*Digital commerce* has grown rapidly over the last decade.",
       "exRu": "Цифровая торговля быстро выросла за последнее десятилетие.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Экономика, деньги и покупки"
     },
     {
       "id": "shift",
@@ -30,7 +48,8 @@
       "ex": "Public attention *has shifted* from television to social media.",
       "exRu": "Внимание публики сместилось с телевидения на соцсети.",
       "note": "shift — shifted — shifted; a shift in habits — перемена в привычках",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "interaction",
@@ -40,7 +59,8 @@
       "tr": "взаимодействие, общение",
       "ex": "Most of our daily *interaction* now happens online.",
       "exRu": "Большая часть нашего повседневного общения теперь происходит онлайн.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Люди и отношения"
     },
     {
       "id": "dominant-force",
@@ -51,7 +71,8 @@
       "ex": "Short videos have become the *dominant force* in online entertainment.",
       "exRu": "Короткие видео стали доминирующей силой в онлайн-развлечениях.",
       "note": "мн. ч. dominant forces",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "digital",
@@ -61,7 +82,8 @@
       "tr": "цифровой",
       "ex": "We live in a *digital* world.",
       "exRu": "Мы живём в цифровом мире.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Технологии и медиа"
     },
     {
       "id": "to-consume",
@@ -72,7 +94,8 @@
       "ex": "Young people *consume* most of their news on their phones.",
       "exRu": "Молодые люди получают большую часть новостей с телефона.",
       "note": "consumption — потребление; consumer — потребитель",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Экономика, деньги и покупки"
     },
     {
       "id": "snackable",
@@ -83,7 +106,8 @@
       "ex": "Platforms prefer *snackable* content that takes seconds to watch.",
       "exRu": "Платформы предпочитают короткий контент, на просмотр которого уходят секунды.",
       "note": "snackable content — короткий контент «на перекус»",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Технологии и медиа"
     },
     {
       "id": "to-capture-attention",
@@ -94,7 +118,9 @@
       "ex": "The first three seconds of a video must *capture attention*.",
       "exRu": "Первые три секунды видео должны захватить внимание.",
       "note": "capturing attention — привлечение внимания",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Технологии и медиа",
+      "essay": true
     },
     {
       "id": "constant-stream",
@@ -104,7 +130,8 @@
       "tr": "непрерывный поток",
       "ex": "We receive a *constant stream* of notifications.",
       "exRu": "Мы получаем непрерывный поток уведомлений.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Технологии и медиа"
     },
     {
       "id": "rapid-fire",
@@ -114,7 +141,8 @@
       "tr": "стремительный, следующий один за другим",
       "ex": "The app shows *rapid-fire* clips that last a few seconds each.",
       "exRu": "Приложение показывает быстро сменяющиеся ролики по несколько секунд.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Технологии и медиа"
     },
     {
       "id": "to-shorten",
@@ -125,7 +153,9 @@
       "ex": "Social media may be *shortening* our attention spans.",
       "exRu": "Соцсети, возможно, сокращают нашу способность концентрироваться.",
       "note": "shortening — сокращение",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Технологии и медиа",
+      "essay": true
     },
     {
       "id": "collective-attention-span",
@@ -136,7 +166,8 @@
       "ex": "Researchers say our *collective attention span* is getting shorter.",
       "exRu": "Исследователи говорят, что наша общая способность удерживать внимание сокращается.",
       "note": "attention span — время, в течение которого человек может концентрироваться",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Технологии и медиа"
     },
     {
       "id": "simultaneously",
@@ -146,7 +177,8 @@
       "tr": "одновременно",
       "ex": "Many people watch TV and scroll their phones *simultaneously*.",
       "exRu": "Многие одновременно смотрят телевизор и листают телефон.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "solitary",
@@ -156,7 +188,8 @@
       "tr": "одиночный, уединённый, одинокий",
       "ex": "Gaming used to be a *solitary* activity.",
       "exRu": "Раньше видеоигры были занятием в одиночку.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Люди и отношения"
     },
     {
       "id": "social-hub",
@@ -166,7 +199,8 @@
       "tr": "место общения, центр общественной жизни",
       "ex": "Online games have become *social hubs* for teenagers.",
       "exRu": "Онлайн-игры стали местом общения для подростков.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Люди и отношения"
     },
     {
       "id": "purely",
@@ -176,7 +210,8 @@
       "tr": "исключительно, только, чисто",
       "ex": "Some friendships exist *purely* online.",
       "exRu": "Некоторые дружбы существуют исключительно в интернете.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "digital-realm",
@@ -186,7 +221,8 @@
       "tr": "цифровое пространство, цифровой мир",
       "ex": "More and more of our lives take place in the *digital realm*.",
       "exRu": "Всё большая часть нашей жизни проходит в цифровом пространстве.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Технологии и медиа"
     },
     {
       "id": "rival",
@@ -196,7 +232,8 @@
       "tr": "соперник, конкурент; соперничать, не уступать",
       "ex": "Online concerts now *rival* real ones in popularity.",
       "exRu": "Онлайн-концерты теперь не уступают настоящим по популярности.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "audience",
@@ -206,7 +243,8 @@
       "tr": "аудитория, зрители, слушатели",
       "ex": "The video reached an *audience* of millions.",
       "exRu": "Видео охватило аудиторию в миллионы человек.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Технологии и медиа"
     },
     {
       "id": "significant",
@@ -216,7 +254,8 @@
       "tr": "значительный, существенный, важный",
       "ex": "There has been a *significant* increase in online shopping.",
       "exRu": "Произошёл значительный рост онлайн-покупок.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "e-commerce",
@@ -226,7 +265,8 @@
       "tr": "электронная коммерция, интернет-торговля",
       "ex": "*E-commerce* grew rapidly during the pandemic.",
       "exRu": "Интернет-торговля быстро росла во время пандемии.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Экономика, деньги и покупки"
     },
     {
       "id": "to-evolve",
@@ -236,7 +276,8 @@
       "tr": "развиваться, эволюционировать",
       "ex": "Online shopping has *evolved* a lot in recent years.",
       "exRu": "Онлайн-шопинг сильно изменился за последние годы.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "to-purchase",
@@ -247,7 +288,8 @@
       "ex": "More people *purchase* products through social media.",
       "exRu": "Всё больше людей покупают товары через соцсети.",
       "note": "purchase products — покупать товары; более формальное, чем buy",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Экономика, деньги и покупки"
     },
     {
       "id": "heavily",
@@ -257,7 +299,8 @@
       "tr": "сильно, в значительной степени",
       "ex": "Young buyers rely *heavily* on online reviews.",
       "exRu": "Молодые покупатели сильно полагаются на отзывы в интернете.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "peer",
@@ -267,7 +310,8 @@
       "tr": "сверстник, ровня, человек своего круга",
       "ex": "Teenagers often trust their *peers* more than adverts.",
       "exRu": "Подростки часто доверяют сверстникам больше, чем рекламе.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Люди и отношения"
     },
     {
       "id": "endorsement",
@@ -278,7 +322,8 @@
       "ex": "Peer *endorsements* influence what we buy.",
       "exRu": "Рекомендации знакомых влияют на то, что мы покупаем.",
       "note": "peer endorsement — рекомендация от «своих»; celebrity endorsement — реклама со знаменитостью",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Экономика, деньги и покупки"
     },
     {
       "id": "surge",
@@ -288,7 +333,9 @@
       "tr": "резкий рост, всплеск; резко расти",
       "ex": "There was a *surge* in online orders before the holidays.",
       "exRu": "Перед праздниками был всплеск онлайн-заказов.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Экономика, деньги и покупки",
+      "essay": true
     },
     {
       "id": "to-remain",
@@ -298,7 +345,8 @@
       "tr": "оставаться",
       "ex": "Privacy *remains* a major concern for users.",
       "exRu": "Конфиденциальность остаётся главной проблемой для пользователей.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "concern",
@@ -308,7 +356,8 @@
       "tr": "беспокойство, озабоченность, проблема; беспокоить",
       "ex": "Screen time is a growing *concern* for parents.",
       "exRu": "Время у экрана всё больше беспокоит родителей.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "increasingly",
@@ -318,7 +367,8 @@
       "tr": "всё более, всё больше",
       "ex": "Shopping is becoming *increasingly* digital.",
       "exRu": "Покупки становятся всё более цифровыми.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "fast-paced",
@@ -328,7 +378,8 @@
       "tr": "быстрый, динамичный, стремительный",
       "ex": "We live in a *fast-paced* world.",
       "exRu": "Мы живём в стремительном мире.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "primary",
@@ -338,7 +389,8 @@
       "tr": "основной, главный, первичный",
       "ex": "For many teenagers, social media is the *primary* source of news.",
       "exRu": "Для многих подростков соцсети — основной источник новостей.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     },
     {
       "id": "labor-market",
@@ -349,7 +401,8 @@
       "ex": "Digital skills are highly valued in today's *labor market*.",
       "exRu": "Цифровые навыки высоко ценятся на современном рынке труда.",
       "note": "брит. написание — labour market",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Работа и карьера"
     },
     {
       "id": "digital-evolution",
@@ -359,7 +412,8 @@
       "tr": "цифровая эволюция, цифровое развитие",
       "ex": "The *digital evolution* has changed how we work and shop.",
       "exRu": "Цифровая эволюция изменила то, как мы работаем и делаем покупки.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Технологии и медиа"
     },
     {
       "id": "camera-angle",
@@ -369,7 +423,8 @@
       "tr": "ракурс (съёмки)",
       "ex": "Quick changes of *camera angles* keep viewers watching.",
       "exRu": "Быстрая смена ракурсов удерживает зрителей.",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Технологии и медиа"
     },
     {
       "id": "to-leave-behind",
@@ -380,7 +435,8 @@
       "ex": "Businesses that ignore social media risk being *left behind*.",
       "exRu": "Компании, которые игнорируют соцсети, рискуют отстать.",
       "note": "leave — left — left",
-      "added": "2026-11-08"
+      "added": "2026-11-08",
+      "topic": "Слова для эссе"
     }
   ]
 }

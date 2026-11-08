@@ -2,7 +2,7 @@
 /* Мои слова — офлайн-карточки для английских слов.
    Слова: words.json (их добавляет Claude). Прогресс: localStorage этого устройства. */
 (() => {
-  const VERSION = '1.2';
+  const VERSION = '1.3';
   const INTERVALS = [0, 1, 3, 7, 14, 30, 60, 120]; // дни до следующего повтора на уровне 0..7
   const MAX_LVL = 7;
   const LEARNED_LVL = 5;
@@ -17,14 +17,14 @@
   const state = {
     data: LS.get(K.words, null) || { updated: null, words: [] },
     progress: LS.get(K.progress, {}) || {},
-    settings: Object.assign({ dir: 'en', newPerDay: 20, accent: 'en-GB' }, LS.get(K.settings, {}) || {}),
+    settings: Object.assign({ dir: 'en', newPerDay: 20, accent: 'en-GB', topic: 'all', lastTopic: '' }, LS.get(K.settings, {}) || {}),
     syncedAt: LS.get(K.synced, null),
     local: LS.get(K.local, []) || [], // слова, добавленные прямо в приложении (ещё не у Claude)
     addOpen: false,
     sync: 'idle', // idle | loading | ok | offline | error
     newCount: 0,
     tab: 'home',
-    dict: { q: '', filter: 'all', open: null, confirmReset: null },
+    dict: { q: '', filter: 'all', topic: 'all', open: null, confirmReset: null },
     restoreOpen: false,
   };
   let session = null;
@@ -71,11 +71,50 @@
       const m = Object.assign({}, w, { word: o.word, local: true, replaced: true });
       if (o.tr) m.tr = o.tr;
       if (o.ex) { m.ex = o.ex; delete m.exRu; }
+      if (o.topic) m.topic = o.topic;
       return m;
     });
     return s.concat(state.local.filter((l) => l.tr && !l.replaces));
   };
   const pendingLocal = () => state.local.filter((l) => !l.tr && !l.replaces);
+
+  // ---------- темы ----------
+  const ESSAY = 'Слова для эссе', MISC = 'Разное';
+  const topicOf = (w) => w.topic || MISC;
+  const inTopic = (w, t) => !t || t === 'all' || topicOf(w) === t || (t === ESSAY && w.essay === true);
+  function allTopics() {
+    const base = state.data && Array.isArray(state.data.topics) ? state.data.topics.slice() : [];
+    const extra = [];
+    serverWords().concat(state.local).forEach((w) => { const t = w.topic; if (t && !base.includes(t) && !extra.includes(t)) extra.push(t); });
+    const i = base.indexOf(ESSAY);
+    if (i >= 0) base.splice(i, 0, ...extra); else base.push(...extra);
+    if (!base.includes(ESSAY)) base.push(ESSAY);
+    if (!base.includes(MISC)) base.push(MISC);
+    return base;
+  }
+  function topicCounts(ws) {
+    const c = {};
+    ws.forEach((w) => { const t = topicOf(w); c[t] = (c[t] || 0) + 1; if (w.essay === true && t !== ESSAY) c[ESSAY] = (c[ESSAY] || 0) + 1; });
+    return c;
+  }
+  const usedTopics = (ws) => { const c = topicCounts(ws); return allTopics().filter((t) => c[t]); };
+  const studyTopic = () => { const t = state.settings.topic; return t && t !== 'all' && usedTopics(words()).includes(t) ? t : 'all'; };
+  function topicSelect(id, withCounts) {
+    const ws = words();
+    const used = usedTopics(ws);
+    if (used.length < 2) return '';
+    const cur = studyTopic();
+    const label = (t) => {
+      if (!withCounts) return t;
+      const q = buildQueue(t); const n = q.due.length + q.fresh.length;
+      return t + (n ? ' · ' + n : '');
+    };
+    const qa = buildQueue('all'); const na = qa.due.length + qa.fresh.length;
+    return '<label class="topic-pick" for="' + id + '"><span>Тема</span><select id="' + id + '" class="select">' +
+      '<option value="all"' + (cur === 'all' ? ' selected' : '') + '>Все темы' + (withCounts && na ? ' · ' + na : '') + '</option>' +
+      used.map((t) => '<option value="' + esc(t) + '"' + (cur === t ? ' selected' : '') + '>' + esc(label(t)) + '</option>').join('') +
+      '</select></label>';
+  }
   const byId = (id) => words().find((w) => w.id === id) || state.local.find((w) => w.id === id);
 
   // Когда Claude добавил слово из приложения в words.json, локальная копия больше не нужна.
@@ -169,9 +208,10 @@
 
   // ---------- queue / SRS ----------
   function introducedToday() { const t = today(); return Object.values(state.progress).filter((p) => p && p.first === t).length; }
-  function buildQueue() {
+  function buildQueue(topic) {
     const t = today();
-    const ws = words();
+    const tp = topic === undefined ? studyTopic() : topic;
+    const ws = words().filter((w) => inTopic(w, tp));
     const due = ws.filter((w) => { const p = prog(w.id); return p && p.due <= t; })
       .sort((a, b) => prog(a.id).due.localeCompare(prog(b.id).due) || prog(a.id).lvl - prog(b.id).lvl);
     const limit = Number(state.settings.newPerDay) || 0;
@@ -287,14 +327,15 @@
     const q = buildQueue();
     const total = q.due.length + q.fresh.length;
     if (total) {
-      html += '<section class="panel today"><div class="today-head"><div class="today-num">' + total + '</div><div class="today-lbl"><b>' + plural(total, ['карточка', 'карточки', 'карточек']) + ' на сегодня</b><span class="muted small">' +
+      html += '<section class="panel today">' + topicSelect('study-topic', true) + '<div class="today-head"><div class="today-num">' + total + '</div><div class="today-lbl"><b>' + plural(total, ['карточка', 'карточки', 'карточек']) + ' на сегодня</b><span class="muted small">' +
         q.due.length + ' на повтор · ' + q.fresh.length + ' ' + plural(q.fresh.length, ['новое', 'новых', 'новых']) + '</span></div></div>' +
         '<button class="btn primary block" data-act="start">Начать повторение</button>' +
         '<button class="btn block" data-act="add">+ Добавить слово</button></section>';
     } else {
-      const next = words().map((w) => prog(w.id)).filter(Boolean).map((p) => p.due).sort()[0];
-      const nextN = next ? words().filter((w) => { const p = prog(w.id); return p && p.due === next; }).length : 0;
-      html += '<section class="panel today"><div class="done-mark">На сегодня всё повторено</div><p class="muted" style="margin:0">' +
+      const tws = words().filter((w) => inTopic(w, studyTopic()));
+      const next = tws.map((w) => prog(w.id)).filter(Boolean).map((p) => p.due).sort()[0];
+      const nextN = next ? tws.filter((w) => { const p = prog(w.id); return p && p.due === next; }).length : 0;
+      html += '<section class="panel today">' + topicSelect('study-topic', true) + '<div class="done-mark">' + (studyTopic() === 'all' ? 'На сегодня всё повторено' : 'По этой теме на сегодня всё') + '</div><p class="muted" style="margin:0">' +
         (q.waitingNew ? 'Ещё ' + q.waitingNew + ' ' + plural(q.waitingNew, ['новое слово ждёт', 'новых слова ждут', 'новых слов ждут']) + ' — лимит новых на сегодня исчерпан. ' : '') +
         (next ? 'Следующее повторение ' + when(next) + ': ' + nextN + ' ' + plural(nextN, W) + '.' : '') + '</p>' +
         (q.waitingNew ? '<button class="btn block" data-act="more-new">Добавить ещё 10 новых на сегодня</button>' : '') +
@@ -336,7 +377,7 @@
     const n = words().length;
     let html = '<header class="top"><div class="eyebrow">10 вопросов · не влияет на расписание</div><h1>Тест</h1></header>';
     if (n < 1) return html + '<div class="panel empty">Сначала нужны слова — пришли их Claude.</div>';
-    html += '<section class="panel">' +
+    html += '<section class="panel">' + topicSelect('quiz-topic', false) +
       '<button class="mode" data-act="quiz-choice"' + (n < 4 ? ' disabled' : '') + '><b>Выбери перевод</b><span>Слово по-английски и четыре варианта перевода' + (n < 4 ? ' · нужно минимум 4 слова' : '') + '</span></button>' +
       '<button class="mode" data-act="quiz-type"><b>Напиши слово</b><span>Перевод по-русски — вспомни и напиши английское слово</span></button>' +
       '<button class="mode" data-act="quiz-listen"' + (canSpeak && n >= 4 ? '' : ' disabled') + '><b>На слух</b><span>Слушаешь произношение и выбираешь слово' + (!canSpeak ? ' · озвучка недоступна' : n < 4 ? ' · нужно минимум 4 слова' : '') + '</span></button>' +
@@ -351,7 +392,9 @@
     const counts = { all: ws.length, new: 0, learning: 0, learned: 0, due: 0 };
     const t = today();
     ws.forEach((w) => { counts[status(w)]++; const p = prog(w.id); if (p && p.due <= t) counts.due++; });
+    const tp = state.dict.topic !== 'all' && !usedTopics(ws).includes(state.dict.topic) ? 'all' : state.dict.topic;
     const list = ws.filter((w) => {
+      if (!inTopic(w, tp)) return false;
       if (f === 'due') { const p = prog(w.id); if (!(p && p.due <= t)) return false; }
       else if (f !== 'all' && status(w) !== f) return false;
       if (!q) return true;
@@ -363,10 +406,29 @@
       '<button class="btn primary" data-act="add" style="min-height:42px;padding:9px 14px">+ Добавить</button></header>' +
       localPanel(false) +
       '<input class="search" id="dict-q" type="search" placeholder="Поиск по слову или переводу" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(state.dict.q) + '">' +
+      topicChips(ws, tp) +
       '<div class="chips">' + chip('all', 'Все') + chip('new', 'Новые') + chip('learning', 'Изучаю') + chip('learned', 'Выучено') + chip('due', 'К повтору') + '</div>';
     if (!list.length) return html + '<div class="list"><div class="empty">' + (ws.length ? 'Ничего не нашлось' : 'Слов пока нет — пришли их Claude') + '</div></div>';
-    html += '<div class="list">' + list.map(itemHtml).join('') + '</div>';
+    if (tp === 'all' && !q) {
+      // по темам, внутри — новые сверху
+      const groups = usedTopics(list).filter((t) => t !== ESSAY || list.some((w) => topicOf(w) === ESSAY));
+      html += groups.map((t) => {
+        const g = list.filter((w) => topicOf(w) === t);
+        if (!g.length) return '';
+        return '<section class="tgroup"><div class="tgroup-h"><span>' + esc(t) + '</span><em>' + g.length + '</em></div><div class="list">' + g.map(itemHtml).join('') + '</div></section>';
+      }).join('');
+    } else {
+      html += '<div class="list">' + list.map(itemHtml).join('') + '</div>';
+    }
     return html;
+  }
+
+  function topicChips(ws, cur) {
+    const used = usedTopics(ws);
+    if (used.length < 2) return '';
+    const c = topicCounts(ws);
+    return '<div class="chips topics">' + '<button class="chip" data-dtopic="all" aria-pressed="' + (cur === 'all') + '">Все темы</button>' +
+      used.map((t) => '<button class="chip" data-dtopic="' + esc(t) + '" aria-pressed="' + (cur === t) + '">' + esc(t) + '<em>' + c[t] + '</em></button>').join('') + '</div>';
   }
 
   // Блок «добавлено на телефоне»: слова ещё не у Claude и не в Word-файле.
@@ -407,7 +469,7 @@
         (w.exRu ? '<div class="ex-ru">' + esc(w.exRu) + '</div>' : '') +
         (w.note ? '<div class="small">' + esc(w.note) + '</div>' : '') +
         (w.ctx ? '<div class="ctx"><b>Где встретил:</b> ' + esc(w.ctx) + '</div>' : '') +
-        '<dl class="facts"><dt>Добавлено</dt><dd>' + esc(dateRu(w.added)) + '</dd>' +
+        '<dl class="facts"><dt>Тема</dt><dd>' + esc(topicOf(w)) + (w.essay === true && topicOf(w) !== ESSAY ? ' · годится для эссе' : '') + '</dd><dt>Добавлено</dt><dd>' + esc(dateRu(w.added)) + '</dd>' +
         '<dt>Уровень</dt><dd>' + (p ? p.lvl + ' из ' + MAX_LVL + (p.lvl >= LEARNED_LVL ? ' · выучено' : '') : 'новое, ещё не повторял') + '</dd>' +
         (p ? '<dt>Повтор</dt><dd>' + when(p.due) + '</dd><dt>Ошибок</dt><dd>' + (p.lapses || 0) + '</dd>' : '') + '</dl>' +
         (p ? (state.dict.confirmReset === w.id
@@ -514,12 +576,13 @@
 
   // ---------- quiz ----------
   function weakFirst(n) {
-    const rated = words().map((w) => { const p = prog(w.id); return { w, k: (p ? p.lvl : 0) + Math.random() * 2.5 }; });
+    const rated = words().filter((w) => inTopic(w, studyTopic())).map((w) => { const p = prog(w.id); return { w, k: (p ? p.lvl : 0) + Math.random() * 2.5 }; });
     rated.sort((a, b) => a.k - b.k);
     return shuffle(rated.slice(0, n).map((r) => r.w));
   }
   function startQuiz(mode) {
-    const pool = weakFirst(Math.min(10, words().length));
+    const pool = weakFirst(10);
+    if (!pool.length) return;
     const items = pool.map((w) => {
       if (mode === 'type') return { id: w.id };
       const others = shuffle(words().filter((x) => x.id !== w.id)).slice(0, 3);
@@ -647,7 +710,28 @@
         if (L) return Object.assign(L, { lemma });
       }
     }
-    return { senses, ipa, pos };
+    const labels = [];
+    for (const m of en.matchAll(/\{\{(?:lb|lbl|label|C|topics|top|cln)\|en\|([^}]+)\}\}/g)) m[1].split('|').forEach((x) => { if (!/=/.test(x)) labels.push(x.trim()); });
+    for (const m of en.matchAll(/\[\[Category:en:([^\]|]+)/g)) labels.push(m[1]);
+    return { senses, ipa, pos, labels };
+  }
+  const TOPIC_HINTS = [
+    [/econom|financ|business|commerce|trade|marketing|accounting|banking|money|shopping|retail|currenc/i, 'Экономика, деньги и покупки'],
+    [/comput|internet|software|\bmedia\b|television|journalism|technolog|telecom|video|photograph|electronic|online/i, 'Технологии и медиа'],
+    [/employment|labou?r|occupation|management|workplace|\bjobs?\b|career/i, 'Работа и карьера'],
+    [/education|school|science|mathemat|physics|chemistry|statistic|academ|linguistic|grammar|universit/i, 'Учёба и наука'],
+    [/\blaw\b|legal|politic|government|military|sociolog|religio|crime|justice/i, 'Общество, политика и право'],
+    [/emotion|psycholog|personality|character|feeling|mood/i, 'Чувства и характер'],
+    [/medic|health|disease|anatomy|\bsports?\b|fitness|patholog|pharmac|physiolog/i, 'Здоровье и спорт'],
+    [/ecolog|environment|biolog|botany|zoology|nature|weather|climat|geolog|animal|plant/i, 'Природа и экология'],
+    [/food|cooking|culinary|beverage|drink|restaurant|cuisine|baking/i, 'Еда и рестораны'],
+    [/music|\bfilm|cinema|literature|\barts?\b|theat|poetry|painting/i, 'Культура: кино, книги, искусство'],
+    [/travel|touris|transport|\bcity\b|urban|housing|architecture|building/i, 'Город, дом и путешествия'],
+    [/relationship|family|kinship|friend|marriage|dating/i, 'Люди и отношения'],
+  ];
+  function hintTopic(labels) {
+    for (const l of labels || []) for (const [re, t] of TOPIC_HINTS) if (re.test(l)) return t;
+    return '';
   }
   async function mmLookup(term, signal) {
     const d = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(term) + '&langpair=en|ru', { signal }).then((r) => r.json());
@@ -687,14 +771,14 @@
     const key = term.toLowerCase();
     if (lookupCache.has(key)) return lookupCache.get(key);
     const page = /[A-Z]{2,}/.test(term) ? term : key;
-    const res = { tr: [], options: [], ipa: '', pos: '', lemma: '', source: '', examples: [] };
+    const res = { tr: [], options: [], ipa: '', pos: '', lemma: '', source: '', examples: [], topic: '' };
     const [wiki, exs] = await Promise.all([
       wikiLookup(page.replace(/^to /, ''), signal, 0).catch((e) => { if (e && e.name === 'AbortError') throw e; return null; }),
       exampleLookup(term, signal).catch((e) => { if (e && e.name === 'AbortError') throw e; return []; }),
     ]);
     res.examples = exs || [];
     if (wiki) {
-      res.ipa = wiki.ipa || ''; res.pos = wiki.pos || ''; res.lemma = wiki.lemma || '';
+      res.ipa = wiki.ipa || ''; res.pos = wiki.pos || ''; res.lemma = wiki.lemma || ''; res.topic = hintTopic(wiki.labels);
       const all = [];
       wiki.senses.slice(0, 8).forEach((s) => s.ru.forEach((r) => { if (!all.includes(r)) all.push(r); }));
       const pick = [];
@@ -710,7 +794,7 @@
   }
 
   let lookupTimer = null, lookupCtl = null;
-  const addUI = { autoTr: '', res: null, pickedEx: null };
+  const addUI = { autoTr: '', res: null, pickedEx: null, topicTouched: false };
   function scheduleLookup(immediate) {
     clearTimeout(lookupTimer);
     const run = () => runLookup();
@@ -736,6 +820,8 @@
       addUI.res = res;
       const ti = $('#add-tr');
       if (res.tr.length && (!ti.value.trim() || ti.value === addUI.autoTr)) { ti.value = res.tr.join(', '); addUI.autoTr = ti.value; }
+      const ts = $('#add-topic');
+      if (res.topic && ts && !addUI.topicTouched && [...ts.options].some((o) => o.value === res.topic)) { ts.value = res.topic; }
       renderSugg();
     } catch (e) {
       if (e && e.name === 'AbortError') return;
@@ -801,15 +887,29 @@
     if (n) { saveLocal(); toast('Перевёл ' + n + ' ' + plural(n, ['слово', 'слова', 'слов']) + ', добавленных без интернета'); if (!session && !quiz && !state.addOpen) render(); }
   }
 
+  function addTopicSelect() {
+    const list = allTopics();
+    const last = state.settings.lastTopic && list.includes(state.settings.lastTopic) ? state.settings.lastTopic : MISC;
+    return '<select class="select field sm" id="add-topic">' + list.map((t) => '<option value="' + esc(t) + '"' + (t === last ? ' selected' : '') + '>' + esc(t) + '</option>').join('') +
+      '<option value="__new">+ Новая тема…</option></select>';
+  }
+  function chosenTopic() {
+    const ts = $('#add-topic'); if (!ts) return MISC;
+    if (ts.value === '__new') { const v = ($('#add-topic-new').value || '').trim().replace(/\s+/g, ' '); return v || MISC; }
+    return ts.value || MISC;
+  }
   function openAdd() {
     state.addOpen = true;
-    addUI.autoTr = ''; addUI.res = null; addUI.pickedEx = null;
+    addUI.autoTr = ''; addUI.res = null; addUI.pickedEx = null; addUI.topicTouched = false;
     openOverlay();
     $('#overlay').innerHTML = '<div class="sheet"><div class="sheet-top"><button class="icon-btn" data-act="close" aria-label="Закрыть">' + ICON.close + '</button><h2 style="flex:1">Новое слово</h2></div><div id="add-dup"></div>' +
       '<form id="add-form" class="panel" autocomplete="off">' +
       '<div class="setting"><label for="add-word">Слово или выражение</label><input class="field" id="add-word" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="например, ubiquitous"></div>' +
       '<div class="setting"><label for="add-tr">Перевод</label><input class="field sm" id="add-tr" enterkeyhint="next" placeholder="подставится сам, можно поправить"><div id="add-sugg"></div></div>' +
       '<div class="setting"><label for="add-ex">Пример</label><textarea class="field sm" id="add-ex" rows="3" placeholder="предложение, где встретил, или выбери пример ниже"></textarea><div id="add-exs"></div></div>' +
+      '<div class="setting"><label for="add-topic">Тема</label>' + addTopicSelect() +
+      '<input class="field sm" id="add-topic-new" placeholder="Название новой темы" hidden>' +
+      '<p class="sugg-status">Подбирается сама по слову, можно сменить.</p></div>' +
       '<button class="btn primary block" type="submit">Сохранить</button>' +
       '<p class="small muted" style="margin:0">С переводом слово сразу попадёт в повторение. Чтобы оно попало в Word-файл, отправь его Claude из «Словаря».</p>' +
       '</form><div id="add-saved" class="small muted" style="text-align:center"></div></div>';
@@ -841,6 +941,9 @@
       if (tr && tr === addUI.autoTr) entry.auto = true;
     }
     if (ex && addUI.pickedEx && addUI.pickedEx.en === ex) { entry.exRu = addUI.pickedEx.ru; entry.exAuto = true; }
+    entry.topic = chosenTopic();
+    if ($('#add-topic').value === '__new' && !$('#add-topic-new').value.trim()) { $('#add-topic-new').focus(); toast('Впиши название новой темы'); return; }
+    state.settings.lastTopic = entry.topic; saveSettings();
     const existing = findExisting(word);
     if (existing) { state.dup = { entry, existing }; renderDup(); return; }
     commitNew(entry);
@@ -857,7 +960,10 @@
     const wi = $('#add-word'), ti = $('#add-tr'), ei = $('#add-ex');
     if (!wi) return;
     wi.value = ''; ti.value = ''; ei.value = '';
-    addUI.autoTr = ''; addUI.res = null; addUI.pickedEx = null;
+    addUI.autoTr = ''; addUI.res = null; addUI.pickedEx = null; addUI.topicTouched = false;
+    const ts = $('#add-topic');
+    if (ts) { const t = state.settings.lastTopic; if (![...ts.options].some((o) => o.value === t)) { const o = document.createElement('option'); o.value = t; o.textContent = t; ts.insertBefore(o, ts.lastElementChild); } ts.value = t; }
+    const tn = $('#add-topic-new'); if (tn) { tn.value = ''; tn.hidden = true; }
     if (lookupCtl) lookupCtl.abort();
     const sb = $('#add-sugg'); if (sb) sb.innerHTML = '';
     const eb = $('#add-exs'); if (eb) eb.innerHTML = '';
@@ -903,6 +1009,7 @@
     const lines = state.local.map((l) => {
       const extra = [];
       if (l.replaces) extra.push('заменить старую карточку');
+      if (l.topic) extra.push('тема: ' + l.topic);
       if (l.auto) extra.push('перевод подобран автоматически');
       if (l.ex) extra.push((l.exAuto ? 'пример: «' : 'встретил: «') + l.ex + '»');
       return '- ' + l.word + (l.tr ? ' — ' + l.tr : '') + (extra.length ? ' (' + extra.join('; ') + ')' : '');
@@ -938,7 +1045,7 @@
   }
   function updateBadge() {
     const b = $('#badge');
-    const q = buildQueue();
+    const q = buildQueue('all');
     const n = q.due.length + q.fresh.length;
     b.textContent = n > 99 ? '99+' : String(n);
     b.hidden = !n;
@@ -959,8 +1066,9 @@
 
   // ---------- events ----------
   document.addEventListener('click', (e) => {
-    const el = e.target.closest('[data-speak],[data-tab],[data-tab-go],[data-act],[data-grade],[data-choice],[data-filter],[data-open],[data-reset],[data-reset-ask],[data-reset-cancel],[data-set],[data-del],[data-del-ask],[data-del-cancel],[data-trchip],[data-expick],[data-lemma]');
+    const el = e.target.closest('[data-speak],[data-tab],[data-tab-go],[data-act],[data-grade],[data-choice],[data-filter],[data-open],[data-reset],[data-reset-ask],[data-reset-cancel],[data-set],[data-del],[data-del-ask],[data-del-cancel],[data-trchip],[data-expick],[data-lemma],[data-dtopic]');
     if (!el) return;
+    if (el.dataset.dtopic) { state.dict.topic = el.dataset.dtopic; state.dict.open = null; return render(); }
     if (el.dataset.trchip !== undefined) return toggleTrChip(el.dataset.trchip);
     if (el.dataset.expick !== undefined) return pickExample(Number(el.dataset.expick));
     if (el.dataset.lemma) { const wi = $('#add-word'); wi.value = el.dataset.lemma; return scheduleLookup(true); }
@@ -1022,6 +1130,15 @@
     e.preventDefault();
     if (e.target.id === 'add-form') return saveNewWord();
     if (quiz && quiz.mode === 'type' && !quiz.answer) answerType();
+  });
+  document.addEventListener('change', (e) => {
+    const id = e.target.id;
+    if (id === 'study-topic' || id === 'quiz-topic') { state.settings.topic = e.target.value; saveSettings(); return render(); }
+    if (id === 'add-topic') {
+      addUI.topicTouched = true;
+      const tn = $('#add-topic-new');
+      if (tn) { tn.hidden = e.target.value !== '__new'; if (!tn.hidden) tn.focus(); }
+    }
   });
   document.addEventListener('input', (e) => {
     if (e.target.id === 'add-word') { if (state.dup) { state.dup = null; $('#add-dup').innerHTML = ''; } return scheduleLookup(false); }
