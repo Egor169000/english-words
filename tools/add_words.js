@@ -7,7 +7,10 @@
       "tr": "вездесущий, повсеместный",
       "ex": "Smartphones have become *ubiquitous*.", "exRu": "Смартфоны стали повсеместными.",
       "ctx": "где встретил (необязательно)", "note": "формы, синонимы (необязательно)", "id": "необязательно" }
-  Существующее слово (тот же id) обновляется, дата добавления и прогресс сохраняются.
+  Проверка дубликатов: слово, которое уже есть в words.json (без учёта регистра, «to» в начале
+  и поля from), НЕ добавляется — скрипт пишет его в «Дубликаты» вместе с текущим переводом.
+  Чтобы заменить старую запись новой, добавь в объект "replace": true — тогда запись обновится
+  (id, дата добавления и прогресс на телефоне сохраняются).
 */
 const fs = require('fs');
 
@@ -30,22 +33,37 @@ const incoming = JSON.parse(fs.readFileSync(inFile, 'utf8'));
 if (!Array.isArray(incoming)) { console.error('Ожидался массив слов'); process.exit(1); }
 const data = fs.existsSync(wordsFile) ? JSON.parse(fs.readFileSync(wordsFile, 'utf8')) : { updated: null, words: [] };
 const now = moscowNow();
-const index = new Map(data.words.map((w, i) => [w.id, i]));
-const added = [], updated = [], problems = [];
+const key = (w) => String(w || '').toLowerCase().replace(/['’`]/g, '').replace(/\s+/g, ' ').trim().replace(/^to /, '');
+const byKey = new Map();
+data.words.forEach((w, i) => {
+  byKey.set('id:' + w.id, i);
+  byKey.set(key(w.word), i);
+  if (w.from) String(w.from).split('|').forEach((f) => byKey.set(key(f), i));
+});
+const added = [], updated = [], dups = [], problems = [];
+const seen = new Set();
 
 for (const e of incoming) {
   if (!e || !e.word || !e.tr) { problems.push(JSON.stringify(e)); continue; }
   const id = e.id || slug(e.word);
   if (!id) { problems.push(e.word + ' (пустой id — задай поле id)'); continue; }
+  const k = key(e.word);
+  if (seen.has(k)) { dups.push(e.word + ' — повтор в этом же списке'); continue; }
+  seen.add(k);
   const clean = {};
   for (const f of FIELDS) if (e[f] != null && String(e[f]).trim() !== '') clean[f] = String(e[f]).trim();
-  if (index.has(id)) {
-    const i = index.get(id);
-    data.words[i] = Object.assign({}, data.words[i], clean, { id, added: data.words[i].added, edited: now.iso });
+  let i = byKey.has('id:' + id) ? byKey.get('id:' + id) : byKey.get(k);
+  if (i === undefined && e.from) String(e.from).split('|').some((f) => (i = byKey.get(key(f))) !== undefined);
+  if (i !== undefined) {
+    const old = data.words[i];
+    if (!e.replace) { dups.push(e.word + ' — уже есть: «' + old.word + '» — ' + old.tr); continue; }
+    data.words[i] = Object.assign({}, old, clean, { id: old.id, added: old.added, edited: now.iso });
+    if (old.from && clean.from && old.from !== clean.from) data.words[i].from = old.from + '|' + clean.from;
     updated.push(clean.word);
   } else {
     const w = Object.assign({ id }, clean, { added: e.added || now.date });
-    index.set(id, data.words.length);
+    byKey.set('id:' + id, data.words.length);
+    byKey.set(k, data.words.length);
     data.words.push(w);
     added.push(clean.word);
   }
@@ -55,5 +73,6 @@ data.updated = now.iso;
 fs.writeFileSync(wordsFile, JSON.stringify(data, null, 2) + '\n');
 console.log('Добавлено: ' + added.length + (added.length ? ' — ' + added.join(', ') : ''));
 console.log('Обновлено: ' + updated.length + (updated.length ? ' — ' + updated.join(', ') : ''));
+if (dups.length) console.log('Дубликаты (не добавлены): ' + dups.length + '\n  ' + dups.join('\n  '));
 console.log('Всего слов: ' + data.words.length);
 if (problems.length) { console.log('Пропущено (нет word или tr): ' + problems.join('; ')); process.exitCode = 2; }

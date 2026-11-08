@@ -34,7 +34,7 @@ function exampleRuns(text, base) {
 
 const PAGE_W = 11906, MARGIN = 1020;
 const TABLE_W = PAGE_W - 2 * MARGIN; // 9866
-const COLS = [560, 2700, 2650, 3956];
+const COLS = [560, 2650, 2900, 3756];
 
 const border = { style: BorderStyle.SINGLE, size: 4, color: RULE };
 const borders = { top: border, bottom: border, left: border, right: border };
@@ -73,21 +73,10 @@ function dateRow(d, n) {
   });
 }
 function wordRow(w, num) {
-  const wordCell = [P([new TextRun({ text: w.word, bold: true, font: SERIF, size: 24, color: INK })], { spacing: { before: 0, after: 30 } })];
-  const meta = [];
-  if (w.ipa) meta.push(new TextRun({ text: w.ipa, font: FONT, size: 18, color: MUTED }));
-  if (w.pos) meta.push(new TextRun({ text: (w.ipa ? '  ' : '') + w.pos, italics: true, font: SERIF, size: 18, color: MUTED }));
-  if (meta.length) wordCell.push(P(meta));
-
-  const trCell = [P([new TextRun({ text: w.tr, font: FONT, size: 20, color: INK })])];
-  if (w.note) trCell.push(P([new TextRun({ text: w.note, font: FONT, size: 17, color: MUTED })]));
-
-  const exCell = [];
-  if (w.ex) exCell.push(P(exampleRuns(w.ex, { font: SERIF, size: 19, italics: true, color: INK })));
-  if (w.exRu) exCell.push(P([new TextRun({ text: w.exRu, font: FONT, size: 18, color: MUTED })]));
-  if (w.ctx) exCell.push(P([new TextRun({ text: 'Где встретил: ', font: FONT, size: 16, color: MUTED, bold: true }), new TextRun({ text: w.ctx, font: FONT, size: 16, color: MUTED })]));
-  if (!exCell.length) exCell.push(P([new TextRun({ text: '' })]));
-
+  // В файле только слово, перевод и пример (так попросил пользователь).
+  const wordCell = [P([new TextRun({ text: w.word, bold: true, font: SERIF, size: 24, color: INK })])];
+  const trCell = [P([new TextRun({ text: w.tr, font: FONT, size: 21, color: INK })])];
+  const exCell = [P(w.ex ? exampleRuns(w.ex, { font: SERIF, size: 20, italics: true, color: INK }) : [new TextRun({ text: '' })])];
   return new TableRow({
     cantSplit: true,
     children: [
