@@ -14,7 +14,7 @@ const fs = require('fs');
 const [, , inFile, wordsFile = 'words.json'] = process.argv;
 if (!inFile) { console.error('Нужен файл с новыми словами'); process.exit(1); }
 
-const FIELDS = ['word', 'ipa', 'pos', 'tr', 'ex', 'exRu', 'ctx', 'note'];
+const FIELDS = ['word', 'ipa', 'pos', 'tr', 'ex', 'exRu', 'ctx', 'note', 'from'];
 
 function moscowNow() {
   const d = new Date(Date.now() + 3 * 3600 * 1000);
@@ -41,7 +41,7 @@ for (const e of incoming) {
   for (const f of FIELDS) if (e[f] != null && String(e[f]).trim() !== '') clean[f] = String(e[f]).trim();
   if (index.has(id)) {
     const i = index.get(id);
-    data.words[i] = Object.assign({}, data.words[i], clean, { id, added: data.words[i].added, edited: now.date });
+    data.words[i] = Object.assign({}, data.words[i], clean, { id, added: data.words[i].added, edited: now.iso });
     updated.push(clean.word);
   } else {
     const w = Object.assign({ id }, clean, { added: e.added || now.date });

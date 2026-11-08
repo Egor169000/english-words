@@ -1,5 +1,5 @@
 /* Офлайн-режим: оболочка приложения из кэша, words.json — сначала из сети, без сети из кэша. */
-const VERSION = 'mw-shell-v1';
+const VERSION = 'mw-shell-v2';
 const DATA = 'mw-data';
 const SHELL = [
   './',
@@ -13,7 +13,8 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: 'reload' — берём свежие файлы с сервера, а не из HTTP-кэша браузера
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {

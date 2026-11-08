@@ -2,11 +2,11 @@
 /* Мои слова — офлайн-карточки для английских слов.
    Слова: words.json (их добавляет Claude). Прогресс: localStorage этого устройства. */
 (() => {
-  const VERSION = '1.0';
+  const VERSION = '1.1';
   const INTERVALS = [0, 1, 3, 7, 14, 30, 60, 120]; // дни до следующего повтора на уровне 0..7
   const MAX_LVL = 7;
   const LEARNED_LVL = 5;
-  const K = { words: 'mw.words', progress: 'mw.progress', settings: 'mw.settings', synced: 'mw.syncedAt' };
+  const K = { words: 'mw.words', progress: 'mw.progress', settings: 'mw.settings', synced: 'mw.syncedAt', local: 'mw.local' };
 
   // ---------- storage ----------
   const LS = {
@@ -19,6 +19,8 @@
     progress: LS.get(K.progress, {}) || {},
     settings: Object.assign({ dir: 'en', newPerDay: 20, accent: 'en-GB' }, LS.get(K.settings, {}) || {}),
     syncedAt: LS.get(K.synced, null),
+    local: LS.get(K.local, []) || [], // слова, добавленные прямо в приложении (ещё не у Claude)
+    addOpen: false,
     sync: 'idle', // idle | loading | ok | offline | error
     newCount: 0,
     tab: 'home',
@@ -30,6 +32,7 @@
 
   const saveProgress = () => LS.set(K.progress, state.progress);
   const saveSettings = () => LS.set(K.settings, state.settings);
+  const saveLocal = () => LS.set(K.local, state.local);
 
   // ---------- helpers ----------
   const $ = (s, el = document) => el.querySelector(s);
@@ -55,8 +58,55 @@
   };
   const short = (n) => (n <= 0 ? 'снова' : n === 1 ? '1 д' : n < 30 ? n + ' д' : Math.round(n / 30) + ' мес');
 
-  const words = () => (state.data && Array.isArray(state.data.words) ? state.data.words : []);
-  const byId = (id) => words().find((w) => w.id === id);
+  // id слова — так же, как в tools/add_words.js
+  const slug = (w) => String(w || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
+    .replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+  const serverWords = () => (state.data && Array.isArray(state.data.words) ? state.data.words : []);
+  // слова для повторения: от Claude (с учётом замен, сделанных на телефоне) + свои, у которых есть перевод
+  const words = () => {
+    const ov = new Map(state.local.filter((l) => l.replaces).map((l) => [l.replaces, l]));
+    const s = serverWords().map((w) => {
+      const o = ov.get(w.id);
+      if (!o) return w;
+      const m = Object.assign({}, w, { word: o.word, local: true, replaced: true });
+      if (o.tr) m.tr = o.tr;
+      if (o.ex) { m.ex = o.ex; delete m.exRu; }
+      return m;
+    });
+    return s.concat(state.local.filter((l) => l.tr && !l.replaces));
+  };
+  const pendingLocal = () => state.local.filter((l) => !l.tr && !l.replaces);
+  const byId = (id) => words().find((w) => w.id === id) || state.local.find((w) => w.id === id);
+
+  // Когда Claude добавил слово из приложения в words.json, локальная копия больше не нужна.
+  function reconcileLocal() {
+    const s = serverWords();
+    if (!s.length || !state.local.length) return 0;
+    const keys = new Map();
+    s.forEach((w) => {
+      keys.set(w.id, w.id);
+      keys.set(slug(w.word), w.id);
+      keys.set(slug(String(w.word).replace(/^to /i, '')), w.id);
+      if (w.from) String(w.from).split('|').forEach((f) => keys.set(slug(f), w.id));
+    });
+    let merged = 0;
+    state.local = state.local.filter((l) => {
+      if (l.replaces) {
+        // замена держится, пока Claude не обновит это слово в words.json
+        const sw = s.find((w) => w.id === l.replaces);
+        if (sw && sw.edited && Date.parse(sw.edited) > Date.parse(l.createdAt || 0)) { merged++; return false; }
+        return true;
+      }
+      const sid = keys.get(l.id) || keys.get(slug(l.word));
+      if (!sid) return true;
+      if (l.id !== sid && state.progress[l.id] && !state.progress[sid]) { state.progress[sid] = state.progress[l.id]; }
+      if (l.id !== sid) delete state.progress[l.id];
+      merged++;
+      return false;
+    });
+    if (merged) { saveLocal(); saveProgress(); }
+    return merged;
+  }
   const prog = (id) => state.progress[id] || null;
   const status = (w) => { const p = prog(w.id); return !p ? 'new' : p.lvl >= LEARNED_LVL ? 'learned' : 'learning'; };
 
@@ -173,6 +223,7 @@
       const hadAny = before.size > 0;
       state.data = data;
       LS.set(K.words, data);
+      reconcileLocal();
       state.syncedAt = new Date().toISOString();
       LS.set(K.synced, state.syncedAt);
       const added = data.words.filter((w) => !before.has(w.id)).length;
@@ -218,14 +269,16 @@
     const head = '<header class="top"><div class="eyebrow">' + WDFULL[now.getDay()] + ', ' + now.getDate() + ' ' + MONTHS[now.getMonth()] + '</div><h1>Мои слова</h1></header>';
     let html = head;
     if (state.newCount) html += '<div class="news">+' + state.newCount + ' ' + plural(state.newCount, ['новое слово', 'новых слова', 'новых слов']) + ' от Claude</div>';
+    html += localPanel(true);
 
     if (!ws.length) {
       html += '<section class="panel"><div class="done-mark">Слов пока нет</div>' +
-        '<p class="muted" style="margin:0">Пришли Claude незнакомые английские слова. Он добавит их сюда с транскрипцией, переводом и примером, а заодно запишет в Word-файл. Новые слова появятся здесь, как только телефон будет в сети.</p></section>' +
+        '<p class="muted" style="margin:0">Пришли Claude незнакомые английские слова. Он добавит их сюда с переводом и примером, а заодно запишет в Word-файл. Новые слова появятся здесь, как только телефон будет в сети.</p>' +
+        '<button class="btn block" data-act="add">+ Добавить слово самому</button></section>' +
         '<article class="icard" aria-label="Пример карточки"><div class="icard-meta"><span class="example-tag">Так выглядит карточка</span>' + '<span class="leitner"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>' +
-        '<div class="icard-body"><div class="headword"><div><div class="hw">ubiquitous</div><div class="pos">прил.</div></div></div>' +
-        '<div class="ipa">/juːˈbɪk.wɪ.təs/</div><div class="answer"><div class="tr">вездесущий, повсеместный</div>' +
-        '<div class="ex">Smartphones have become <mark>ubiquitous</mark> in daily life.</div><div class="ex-ru">Смартфоны стали повсеместными в повседневной жизни.</div></div></div></article>';
+        '<div class="icard-body"><div class="headword"><div class="hw">ubiquitous</div></div>' +
+        '<div class="answer"><div class="tr">вездесущий, повсеместный</div>' +
+        '<div class="ex">Smartphones have become <mark>ubiquitous</mark> in daily life.</div></div></div></article>';
       html += installNote() + syncLine();
       return html;
     }
@@ -235,7 +288,8 @@
     if (total) {
       html += '<section class="panel today"><div class="today-head"><div class="today-num">' + total + '</div><div class="today-lbl"><b>' + plural(total, ['карточка', 'карточки', 'карточек']) + ' на сегодня</b><span class="muted small">' +
         q.due.length + ' на повтор · ' + q.fresh.length + ' ' + plural(q.fresh.length, ['новое', 'новых', 'новых']) + '</span></div></div>' +
-        '<button class="btn primary block" data-act="start">Начать повторение</button></section>';
+        '<button class="btn primary block" data-act="start">Начать повторение</button>' +
+        '<button class="btn block" data-act="add">+ Добавить слово</button></section>';
     } else {
       const next = words().map((w) => prog(w.id)).filter(Boolean).map((p) => p.due).sort()[0];
       const nextN = next ? words().filter((w) => { const p = prog(w.id); return p && p.due === next; }).length : 0;
@@ -243,6 +297,7 @@
         (q.waitingNew ? 'Ещё ' + q.waitingNew + ' ' + plural(q.waitingNew, ['новое слово ждёт', 'новых слова ждут', 'новых слов ждут']) + ' — лимит новых на сегодня исчерпан. ' : '') +
         (next ? 'Следующее повторение ' + when(next) + ': ' + nextN + ' ' + plural(nextN, W) + '.' : '') + '</p>' +
         (q.waitingNew ? '<button class="btn block" data-act="more-new">Добавить ещё 10 новых на сегодня</button>' : '') +
+        '<button class="btn block" data-act="add">+ Добавить слово</button>' +
         '<button class="btn ghost" data-tab-go="quiz">Пройти тест по словам</button></section>';
     }
 
@@ -303,7 +358,9 @@
     }).sort((a, b) => String(b.added || '').localeCompare(String(a.added || '')) || String(a.word).localeCompare(String(b.word)));
 
     const chip = (k, l) => '<button class="chip" data-filter="' + k + '" aria-pressed="' + (f === k) + '">' + l + '<em>' + counts[k] + '</em></button>';
-    let html = '<header class="top"><div class="eyebrow">' + ws.length + ' ' + plural(ws.length, W) + '</div><h1>Словарь</h1></header>' +
+    let html = '<header class="top row spread" style="flex-direction:row;align-items:flex-end"><div><div class="eyebrow">' + ws.length + ' ' + plural(ws.length, W) + '</div><h1>Словарь</h1></div>' +
+      '<button class="btn primary" data-act="add" style="min-height:42px;padding:9px 14px">+ Добавить</button></header>' +
+      localPanel(false) +
       '<input class="search" id="dict-q" type="search" placeholder="Поиск по слову или переводу" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(state.dict.q) + '">' +
       '<div class="chips">' + chip('all', 'Все') + chip('new', 'Новые') + chip('learning', 'Изучаю') + chip('learned', 'Выучено') + chip('due', 'К повтору') + '</div>';
     if (!list.length) return html + '<div class="list"><div class="empty">' + (ws.length ? 'Ничего не нашлось' : 'Слов пока нет — пришли их Claude') + '</div></div>';
@@ -311,11 +368,37 @@
     return html;
   }
 
+  // Блок «добавлено на телефоне»: слова ещё не у Claude и не в Word-файле.
+  function localPanel(compact) {
+    const all = state.local;
+    if (!all.length) return '';
+    const pend = pendingLocal();
+    if (compact && !pend.length) return '';
+    const n = all.length;
+    let h = '<section class="panel local">';
+    h += '<div class="row spread"><b>' + (compact
+      ? pend.length + ' ' + plural(pend.length, ['слово ждёт', 'слова ждут', 'слов ждут']) + ' перевода'
+      : 'Добавлено на телефоне: ' + n) + '</b></div>';
+    h += '<p class="small muted" style="margin:0">' + (compact
+      ? 'Отправь их Claude: он переведёт, добавит примеры и впишет в Word-файл.'
+      : 'Этих слов ещё нет в Word-файле. Отправь их Claude: он дополнит карточки и впишет слова в файл.') + '</p>';
+    if (!compact) {
+      h += '<div class="local-list">' + all.map((l) => '<div class="local-item"><span><b>' + esc(l.word) + '</b>' + (l.tr ? ' — ' + esc(l.tr) : (l.replaces ? '' : ' <span class="tag">ждёт перевода</span>')) + (l.replaces ? ' <span class="tag">замена</span>' : '') + '</span>' +
+        (state.dict.confirmDel === l.id
+          ? '<span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn danger" style="min-height:34px;padding:6px 10px;font-size:14px" data-del="' + esc(l.id) + '">Удалить</button><button class="btn" style="min-height:34px;padding:6px 10px;font-size:14px" data-del-cancel="1">Нет</button></span>'
+          : '<button class="icon-btn" style="width:34px;height:34px" data-del-ask="' + esc(l.id) + '" aria-label="Удалить ' + esc(l.word) + '">' + ICON.close + '</button>') +
+        '</div>').join('') + '</div>';
+    }
+    h += '<button class="btn primary block" data-act="send">Отправить Claude</button>';
+    if (all.some((l) => l.sentAt)) h += '<p class="small muted" style="margin:0">Уже отправлял? Слова пропадут из этого списка сами, когда Claude их добавит и телефон будет в сети.</p>';
+    return h + '</section>';
+  }
+
   function itemHtml(w) {
     const open = state.dict.open === w.id;
     const p = prog(w.id);
     let h = '<div class="item"><button class="item-head" data-open="' + esc(w.id) + '" aria-expanded="' + open + '"><span class="item-word">' + esc(w.word) +
-      (w.pos ? '<span class="pos">' + esc(w.pos) + '</span>' : '') + '</span><span class="item-tr">' + esc(w.tr) + '</span>' + leitner(w) + '</button>';
+      (w.pos ? '<span class="pos">' + esc(w.pos) + '</span>' : '') + (w.local ? '<span class="tag">на телефоне</span>' : '') + '</span><span class="item-tr">' + esc(w.tr) + '</span>' + leitner(w) + '</button>';
     if (open) {
       h += '<div class="item-body">' +
         '<div class="row spread"><span class="ipa">' + esc(w.ipa || '') + '</span>' + speakBtn(w.word) + '</div>' +
@@ -368,23 +451,19 @@
     const isNew = !prog(w.id);
     const meta = '<div class="icard-meta"><span>' + (dir === 'en' ? 'EN → RU' : 'RU → EN') + (isNew ? ' · новое' : '') + '</span>' + leitner(w) + '</div>';
     let body;
+    // На карточке только слово, перевод и пример.
     if (dir === 'en') {
-      body = '<div class="headword"><div><div class="hw">' + esc(w.word) + '</div>' + (w.pos ? '<div class="pos">' + esc(w.pos) + '</div>' : '') + '</div>' + speakBtn(w.word) + '</div>' +
-        (w.ipa ? '<div class="ipa">' + esc(w.ipa) + '</div>' : '');
+      body = '<div class="headword"><div class="hw">' + esc(w.word) + '</div>' + speakBtn(w.word) + '</div>';
     } else {
-      body = '<div class="headword"><div><div class="hw ru">' + esc(w.tr) + '</div>' + (w.pos ? '<div class="pos">' + esc(w.pos) + '</div>' : '') + '</div></div>' +
-        (session && !session.revealed ? '<div class="hint">Вспомни слово по-английски</div>' : '');
+      body = '<div class="headword"><div class="hw ru">' + esc(w.tr) + '</div></div>';
     }
     return { meta, body };
   }
   function cardBack(w, dir) {
     let h = '<div class="answer">';
     if (dir === 'en') h += '<div class="tr">' + esc(w.tr) + '</div>';
-    else h += '<div class="headword"><div><div class="hw">' + esc(w.word) + '</div>' + (w.ipa ? '<div class="ipa">' + esc(w.ipa) + '</div>' : '') + '</div>' + speakBtn(w.word) + '</div>';
+    else h += '<div class="headword"><div class="hw">' + esc(w.word) + '</div>' + speakBtn(w.word) + '</div>';
     if (w.ex) h += '<div class="ex">' + fmtEx(w.ex, w.word) + '</div>';
-    if (w.exRu) h += '<div class="ex-ru">' + esc(w.exRu) + '</div>';
-    if (w.note) h += '<div class="small muted">' + esc(w.note) + '</div>';
-    if (w.ctx) h += '<div class="ctx"><b>Где встретил:</b> ' + esc(w.ctx) + '</div>';
     return h + '</div>';
   }
   function renderSession() {
@@ -519,10 +598,124 @@
       '<div class="row" style="width:100%"><button class="btn" style="flex:1" data-act="quiz-again">Ещё раз</button><button class="btn primary" style="flex:1" data-act="close">Готово</button></div></section></div>';
   }
 
+  // ---------- добавление слова в приложении ----------
+  function openAdd() {
+    state.addOpen = true;
+    openOverlay();
+    $('#overlay').innerHTML = '<div class="sheet"><div class="sheet-top"><button class="icon-btn" data-act="close" aria-label="Закрыть">' + ICON.close + '</button><h2 style="flex:1">Новое слово</h2></div><div id="add-dup"></div>' +
+      '<form id="add-form" class="panel" autocomplete="off">' +
+      '<div class="setting"><label for="add-word">Слово или выражение</label><input class="field" id="add-word" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="например, ubiquitous"></div>' +
+      '<div class="setting"><label for="add-tr">Перевод</label><input class="field sm" id="add-tr" enterkeyhint="next" placeholder="можно оставить пустым — переведёт Claude"></div>' +
+      '<div class="setting"><label for="add-ex">Где встретил</label><textarea class="field sm" id="add-ex" rows="3" placeholder="предложение с этим словом (необязательно)"></textarea></div>' +
+      '<button class="btn primary block" type="submit">Сохранить</button>' +
+      '<p class="small muted" style="margin:0">С переводом слово сразу попадёт в повторение. Без перевода — подождёт, пока ты отправишь его Claude.</p>' +
+      '</form><div id="add-saved" class="small muted" style="text-align:center"></div></div>';
+    setTimeout(() => { const i = $('#add-word'); if (i) i.focus(); }, 60);
+  }
+  // Есть ли слово уже в словаре (у Claude или добавленное на телефоне)
+  function findExisting(word) {
+    const n = norm(word), s2 = slug(String(word).replace(/^to /i, ''));
+    const match = (w) => norm(w.word) === n || slug(String(w.word).replace(/^to /i, '')) === s2 ||
+      (w.from && String(w.from).split('|').some((f) => norm(f) === n));
+    const loc = state.local.find((l) => !l.replaces && match(l));
+    if (loc) return { kind: 'local', w: loc };
+    const srv = serverWords().find((w) => match(w) || state.local.some((l) => l.replaces === w.id && match(l)));
+    if (srv) return { kind: 'server', w: words().find((x) => x.id === srv.id) || srv };
+    return null;
+  }
+  function saveNewWord() {
+    const wi = $('#add-word'), ti = $('#add-tr'), ei = $('#add-ex');
+    const word = wi.value.trim().replace(/\s+/g, ' ');
+    if (!word) { wi.focus(); return; }
+    const entry = { id: slug(word) || ('w-' + Date.now().toString(36)), word, added: today(), local: true };
+    const tr = ti.value.trim(); const ex = ei.value.trim();
+    if (tr) entry.tr = tr;
+    if (ex) entry.ex = ex;
+    const existing = findExisting(word);
+    if (existing) { state.dup = { entry, existing }; renderDup(); return; }
+    commitNew(entry);
+  }
+  function commitNew(entry) {
+    state.local.push(entry);
+    saveLocal();
+    toast(entry.tr ? '«' + entry.word + '» добавлено в повторение' : '«' + entry.word + '» сохранено — переведёт Claude');
+    afterSave();
+  }
+  function afterSave() {
+    state.dup = null;
+    const box = $('#add-dup'); if (box) box.innerHTML = '';
+    const wi = $('#add-word'), ti = $('#add-tr'), ei = $('#add-ex');
+    if (!wi) return;
+    wi.value = ''; ti.value = ''; ei.value = '';
+    const n = state.local.length;
+    $('#add-saved').textContent = n ? 'На телефоне ' + n + ' ' + plural(n, ['слово', 'слова', 'слов']) + ' для Claude' : '';
+    wi.focus();
+  }
+  function renderDup() {
+    const { entry, existing } = state.dup;
+    const old = existing.w;
+    $('#add-dup').innerHTML = '<section class="dup" role="alert">' +
+      '<b>«' + esc(old.word) + '» уже есть в словаре</b>' +
+      '<div class="dup-grid"><span class="muted">Сейчас</span><span>' + (old.tr ? esc(old.tr) : '<span class="tag">ждёт перевода</span>') + '</span>' +
+      '<span class="muted">Новое</span><span>' + esc(entry.word) + (entry.tr ? ' — ' + esc(entry.tr) : ' <span class="muted">(без перевода)</span>') + '</span></div>' +
+      '<div class="dup-actions"><button class="btn" data-act="dup-discard">Удалить новое слово</button>' +
+      '<button class="btn primary" data-act="dup-replace">Заменить старое новым</button></div>' +
+      '<p class="small muted" style="margin:0">При замене прогресс по этому слову начнётся заново.</p></section>';
+    const b = $('#add-dup [data-act=dup-replace]'); if (b) b.focus({ preventScroll: true });
+    $('#overlay').scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function dupReplace() {
+    const { entry, existing } = state.dup;
+    if (existing.kind === 'local') {
+      const id = existing.w.id;
+      const i = state.local.indexOf(existing.w);
+      state.local[i] = Object.assign({}, entry, { id });
+      delete state.progress[id];
+    } else {
+      const sid = existing.w.id;
+      state.local = state.local.filter((l) => l.replaces !== sid);
+      state.local.push(Object.assign({}, entry, { id: 'r-' + sid, replaces: sid, createdAt: new Date().toISOString() }));
+      delete state.progress[sid];
+    }
+    saveLocal(); saveProgress();
+    toast('Старая карточка заменена новой');
+    afterSave();
+  }
+  function dupDiscard() {
+    toast('Новое слово не добавлено');
+    afterSave();
+  }
+  function sendText() {
+    const lines = state.local.map((l) => {
+      const extra = [];
+      if (l.replaces) extra.push('заменить старую карточку');
+      if (l.ex) extra.push('встретил: «' + l.ex + '»');
+      return '- ' + l.word + (l.tr ? ' — ' + l.tr : '') + (extra.length ? ' (' + extra.join('; ') + ')' : '');
+    });
+    return 'Добавь в «Мои слова»:\n' + lines.join('\n');
+  }
+  async function sendToClaude() {
+    if (!state.local.length) return;
+    const text = sendText();
+    const mark = () => { const t = new Date().toISOString(); state.local.forEach((l) => { l.sentAt = l.sentAt || t; }); saveLocal(); render(); };
+    if (navigator.share) {
+      try { await navigator.share({ text }); mark(); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(text); mark(); toast('Скопировано — вставь в чат с Claude'); }
+    catch (e) {
+      openOverlay();
+      $('#overlay').innerHTML = '<div class="sheet"><div class="sheet-top"><button class="icon-btn" data-act="close" aria-label="Закрыть">' + ICON.close + '</button><h2 style="flex:1">Скопируй и отправь Claude</h2></div>' +
+        '<textarea class="backup" id="send-text" readonly>' + esc(text) + '</textarea></div>';
+      const t = $('#send-text'); if (t) { t.focus(); t.select(); }
+      mark();
+    }
+  }
+
   // ---------- overlay / render ----------
   function openOverlay() { $('#overlay').hidden = false; document.body.style.overflow = 'hidden'; }
   function closeOverlay() {
-    session = null; quiz = null;
+    session = null; quiz = null; state.addOpen = false; state.dup = null;
     if (canSpeak) try { speechSynthesis.cancel(); } catch (e) { /* */ }
     const ov = $('#overlay'); ov.hidden = true; ov.innerHTML = '';
     document.body.style.overflow = '';
@@ -551,8 +744,16 @@
 
   // ---------- events ----------
   document.addEventListener('click', (e) => {
-    const el = e.target.closest('[data-speak],[data-tab],[data-tab-go],[data-act],[data-grade],[data-choice],[data-filter],[data-open],[data-reset],[data-reset-ask],[data-reset-cancel],[data-set]');
+    const el = e.target.closest('[data-speak],[data-tab],[data-tab-go],[data-act],[data-grade],[data-choice],[data-filter],[data-open],[data-reset],[data-reset-ask],[data-reset-cancel],[data-set],[data-del],[data-del-ask],[data-del-cancel]');
     if (!el) return;
+    if (el.dataset.delAsk) { state.dict.confirmDel = el.dataset.delAsk; return render(); }
+    if (el.dataset.delCancel) { state.dict.confirmDel = null; return render(); }
+    if (el.dataset.del) {
+      const id = el.dataset.del;
+      state.local = state.local.filter((l) => l.id !== id); saveLocal();
+      if (!words().some((w) => w.id === id)) { delete state.progress[id]; saveProgress(); }
+      state.dict.confirmDel = null; toast('Слово удалено'); return render();
+    }
     if (el.dataset.speak !== undefined) { e.stopPropagation(); speak(el.dataset.speak); return; }
     if (el.dataset.tab) return goTab(el.dataset.tab);
     if (el.dataset.tabGo) return goTab(el.dataset.tabGo);
@@ -572,6 +773,10 @@
     }
     switch (el.dataset.act) {
       case 'start': return startSession();
+      case 'add': return openAdd();
+      case 'dup-replace': return state.dup && dupReplace();
+      case 'dup-discard': return state.dup && dupDiscard();
+      case 'send': return sendToClaude();
       case 'reveal': if (session && !session.revealed) { session.revealed = true; renderSession(); } return;
       case 'close': return closeOverlay();
       case 'quiz-choice': return startQuiz('choice');
@@ -595,7 +800,11 @@
     }
   });
 
-  document.addEventListener('submit', (e) => { e.preventDefault(); if (quiz && quiz.mode === 'type' && !quiz.answer) answerType(); });
+  document.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (e.target.id === 'add-form') return saveNewWord();
+    if (quiz && quiz.mode === 'type' && !quiz.answer) answerType();
+  });
   document.addEventListener('input', (e) => {
     if (e.target.id === 'dict-q') {
       state.dict.q = e.target.value;
@@ -605,6 +814,14 @@
     }
   });
   document.addEventListener('keydown', (e) => {
+    if (state.addOpen) {
+      if (e.key === 'Escape') closeOverlay();
+      // Enter в поле слова/перевода — к следующему полю
+      if (e.key === 'Enter' && (e.target.id === 'add-word' || e.target.id === 'add-tr')) {
+        e.preventDefault(); const next = e.target.id === 'add-word' ? '#add-tr' : '#add-ex'; const n = $(next); if (n) n.focus();
+      }
+      return;
+    }
     if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) {
       if (quiz && quiz.answer && e.key === 'Enter') { e.preventDefault(); nextQuestion(); }
       return;
@@ -645,6 +862,7 @@
   }
 
   // ---------- start ----------
+  reconcileLocal();
   render();
   sync(false);
   let lastSync = Date.now();
