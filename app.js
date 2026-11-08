@@ -2,7 +2,7 @@
 /* Мои слова — офлайн-карточки для английских слов.
    Слова: words.json (их добавляет Claude). Прогресс: localStorage этого устройства. */
 (() => {
-  const VERSION = '1.4';
+  const VERSION = '1.5';
   const INTERVALS = [0, 1, 3, 7, 14, 30, 60, 120]; // дни до следующего повтора на уровне 0..7
   const MAX_LVL = 7;
   const LEARNED_LVL = 5;
@@ -81,6 +81,21 @@
   // ---------- темы ----------
   const ESSAY = 'Слова для эссе', MISC = 'Разное';
   const topicOf = (w) => w.topic || MISC;
+  // приглушённые цвета-метки тем (только точки и полоски, не заливки)
+  const TOPIC_COLORS = {
+    'Технологии и медиа': '#4A7BD0', 'Экономика, деньги и покупки': '#2E9C7C', 'Работа и карьера': '#8A68C9',
+    'Учёба и наука': '#2F9DBA', 'Общество, политика и право': '#A06D4E', 'Люди и отношения': '#D9775F',
+    'Чувства и характер': '#C9618E', 'Здоровье и спорт': '#4FA65A', 'Природа и экология': '#7A9A33',
+    'Город, дом и путешествия': '#C99A2E', 'Еда и рестораны': '#DE8034', 'Культура: кино, книги, искусство': '#6E73D6',
+    'Слова для эссе': '#64748B', 'Разное': '#9AA3B0',
+  };
+  const EXTRA_COLORS = ['#4A7BD0', '#2E9C7C', '#8A68C9', '#D9775F', '#C99A2E', '#C9618E', '#2F9DBA', '#7A9A33'];
+  function topicColor(t) {
+    if (TOPIC_COLORS[t]) return TOPIC_COLORS[t];
+    let h = 0; for (const ch of String(t)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return EXTRA_COLORS[h % EXTRA_COLORS.length];
+  }
+  const tdot = (t) => '<i class="tdot" style="--tc:' + topicColor(t) + '" aria-hidden="true"></i>';
   const inTopic = (w, t) => !t || t === 'all' || topicOf(w) === t || (t === ESSAY && w.essay === true);
   function allTopics() {
     const base = state.data && Array.isArray(state.data.topics) ? state.data.topics.slice() : [];
@@ -99,7 +114,7 @@
   }
   const usedTopics = (ws) => { const c = topicCounts(ws); return allTopics().filter((t) => c[t]); };
   const studyTopic = () => { const t = state.settings.topic; return t && t !== 'all' && usedTopics(words()).includes(t) ? t : 'all'; };
-  function topicSelect(id, withCounts) {
+  function topicSelect(id, withCounts, dark) {
     const ws = words();
     const used = usedTopics(ws);
     if (used.length < 2) return '';
@@ -110,7 +125,7 @@
       return t + (n ? ' · ' + n : '');
     };
     const qa = buildQueue('all'); const na = qa.due.length + qa.fresh.length;
-    return '<label class="topic-pick" for="' + id + '"><span>Тема</span><select id="' + id + '" class="select">' +
+    return '<label class="topic-pick' + (dark ? ' on-dark' : '') + '" for="' + id + '"><span>Тема</span><select id="' + id + '" class="select">' +
       '<option value="all"' + (cur === 'all' ? ' selected' : '') + '>Все темы' + (withCounts && na ? ' · ' + na : '') + '</option>' +
       used.map((t) => '<option value="' + esc(t) + '"' + (cur === t ? ' selected' : '') + '>' + esc(label(t)) + '</option>').join('') +
       '</select></label>';
@@ -306,16 +321,16 @@
   // ---------- views ----------
   function viewHome() {
     const ws = words();
-    const head = '<header class="top"><h1>Мои слова</h1></header>';
-    let html = head;
+    let html = '<header class="top row spread" style="flex-direction:row;align-items:center"><h1>Мои слова</h1>' +
+      '<button class="btn add-btn" data-act="add" aria-label="Добавить слово"><span aria-hidden="true">+</span> Слово</button></header>';
     if (state.newCount) html += '<div class="news">+' + state.newCount + ' ' + plural(state.newCount, ['новое слово', 'новых слова', 'новых слов']) + ' от Claude</div>';
     html += localPanel(true);
 
     if (!ws.length) {
-      html += '<section class="panel"><div class="done-mark">Слов пока нет</div>' +
-        '<p class="muted" style="margin:0">Пришли Claude незнакомые английские слова. Он добавит их сюда с переводом и примером, а заодно запишет в Word-файл. Новые слова появятся здесь, как только телефон будет в сети.</p>' +
-        '<button class="btn block" data-act="add">+ Добавить слово самому</button></section>' +
-        '<article class="icard" aria-label="Пример карточки"><div class="icard-meta"><span class="example-tag">Так выглядит карточка</span>' + '<span class="leitner"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>' +
+      html += '<section class="hero"><div class="hero-done">Слов пока нет</div>' +
+        '<p class="hero-sub">Пришли Claude незнакомые английские слова или добавь их сам кнопкой «+ Слово». Они появятся здесь вместе с переводом и примером.</p>' +
+        '<button class="btn hero-btn block" data-act="add">Добавить первое слово</button></section>' +
+        '<article class="icard" aria-label="Пример карточки"><div class="icard-meta"><span class="meta-topic">' + tdot('Слова для эссе') + 'Так выглядит карточка</span>' + '<span class="leitner"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>' +
         '<div class="icard-body"><div class="headword"><div class="hw">ubiquitous</div></div>' +
         '<div class="answer"><div class="tr">вездесущий, повсеместный</div>' +
         '<div class="ex">Smartphones have become <mark>ubiquitous</mark> in daily life.</div></div></div></article>';
@@ -326,46 +341,44 @@
     const q = buildQueue();
     const total = q.due.length + q.fresh.length;
     if (total) {
-      html += '<section class="panel today">' + topicSelect('study-topic', true) + '<div class="today-head"><div class="today-num">' + total + '</div><div class="today-lbl"><b>' + plural(total, ['карточка', 'карточки', 'карточек']) + ' на сегодня</b><span class="muted small">' +
+      html += '<section class="hero">' + topicSelect('study-topic', true, true) +
+        '<div class="hero-main"><div class="hero-num">' + total + '</div><div class="hero-lbl"><b>' + plural(total, ['карточка', 'карточки', 'карточек']) + ' на сегодня</b><span>' +
         q.due.length + ' на повтор · ' + q.fresh.length + ' ' + plural(q.fresh.length, ['новое', 'новых', 'новых']) + '</span></div></div>' +
-        '<button class="btn primary block" data-act="start">Начать повторение</button>' +
-        '<button class="btn block" data-act="add">+ Добавить слово</button></section>';
+        '<button class="btn hero-btn block" data-act="start">Начать повторение</button></section>';
     } else {
       const tws = words().filter((w) => inTopic(w, studyTopic()));
       const next = tws.map((w) => prog(w.id)).filter(Boolean).map((p) => p.due).sort()[0];
       const nextN = next ? tws.filter((w) => { const p = prog(w.id); return p && p.due === next; }).length : 0;
-      html += '<section class="panel today">' + topicSelect('study-topic', true) + '<div class="done-mark">' + (studyTopic() === 'all' ? 'На сегодня всё повторено' : 'По этой теме на сегодня всё') + '</div><p class="muted" style="margin:0">' +
+      html += '<section class="hero done">' + topicSelect('study-topic', true, true) +
+        '<div class="hero-done"><span class="hero-check" aria-hidden="true">✓</span>' + (studyTopic() === 'all' ? 'На сегодня всё повторено' : 'По этой теме на сегодня всё') + '</div>' +
+        '<p class="hero-sub">' +
         (q.waitingNew ? 'Ещё ' + q.waitingNew + ' ' + plural(q.waitingNew, ['новое слово ждёт', 'новых слова ждут', 'новых слов ждут']) + ' — лимит новых на сегодня исчерпан. ' : '') +
         (next ? 'Следующее повторение ' + when(next) + ': ' + nextN + ' ' + plural(nextN, W) + '.' : '') + '</p>' +
-        (q.waitingNew ? '<button class="btn block" data-act="more-new">Добавить ещё 10 новых на сегодня</button>' : '') +
-        '<button class="btn block" data-act="add">+ Добавить слово</button>' +
-        '<button class="btn ghost" data-tab-go="quiz">Пройти тест по словам</button></section>';
+        (q.waitingNew ? '<button class="btn hero-btn block" data-act="more-new">Добавить ещё 10 новых на сегодня</button>' : '') +
+        '<button class="btn hero-ghost" data-tab-go="quiz">Пройти тест по словам →</button></section>';
     }
 
     const counts = { new: 0, learning: 0, learned: 0 };
     ws.forEach((w) => counts[status(w)]++);
-    html += '<section class="stats"><div class="stat"><b>' + ws.length + '</b><span>всего</span></div><div class="stat"><b>' + (counts.learning) + '</b><span>изучаю</span></div><div class="stat"><b>' + counts.learned + '</b><span>выучено</span></div></section>';
+    html += '<section class="strip"><div><b>' + ws.length + '</b><span>всего</span></div><div><b class="c-learn">' + counts.learning + '</b><span>изучаю</span></div><div><b class="c-good">' + counts.learned + '</b><span>выучено</span></div></section>';
 
-    // уровни (коробки Лейтнера)
+    // уровни (коробки Лейтнера): цвет темнеет с уровнем, выученные — зелёные
     const lv = new Array(MAX_LVL + 1).fill(0);
     ws.forEach((w) => { const p = prog(w.id); lv[p ? p.lvl : 0]++; });
-    const newOnly = counts.new;
     const maxLv = Math.max(1, ...lv);
     const labels = ['нов.', '1 д', '3 д', '7 д', '14 д', '30 д', '60 д', '120 д'];
     let bars = '';
     lv.forEach((n, i) => {
-      const cls = n === 0 ? 'zero' : i === 0 ? 'new' : i >= LEARNED_LVL ? 'learned' : '';
-      bars += '<div class="bar"><em>' + (n || '') + '</em><i class="' + cls + '" style="height:' + Math.max(3, Math.round((n / maxLv) * 72)) + 'px"></i></div>';
+      bars += '<div class="bar"><em>' + (n || '') + '</em><i class="l' + i + (n === 0 ? ' zero' : '') + '" style="height:' + Math.max(3, Math.round((n / maxLv) * 72)) + 'px"></i></div>';
     });
-    html += '<section class="panel"><div class="row spread"><h2>Коробки Лейтнера</h2><span class="small muted">интервал повтора</span></div><div class="bars">' + bars + '</div><div class="bar-labels">' +
-      labels.map((l) => '<span>' + l + '</span>').join('') + '</div>' +
-      (newOnly ? '' : '') + '</section>';
+    html += '<section class="panel"><div class="sec-h"><h2>Коробки Лейтнера</h2><span>через сколько повтор</span></div><div class="bars">' + bars + '</div><div class="bar-labels">' +
+      labels.map((l) => '<span>' + l + '</span>').join('') + '</div></section>';
 
     const fc = forecast(7);
-    html += '<section class="panel"><h2>Повторы на неделю</h2><div class="week">' + fc.map((f, i) => {
+    html += '<section class="panel"><div class="sec-h"><h2>Повторы на неделю</h2></div><div class="week">' + fc.map((f, i) => {
       const [y, m, d] = f.d.split('-').map(Number);
       const wd = WD[new Date(y, m - 1, d).getDay()];
-      return '<div class="day' + (f.n ? '' : ' zero') + '"><b>' + f.n + '</b><span>' + (i === 0 ? 'сег.' : wd) + '</span></div>';
+      return '<div class="day' + (i === 0 ? ' today' : '') + (f.n ? '' : ' zero') + '"><b>' + f.n + '</b><span>' + (i === 0 ? 'сег.' : wd) + '</span></div>';
     }).join('') + '</div></section>';
 
     html += installNote();
@@ -376,10 +389,10 @@
     const n = words().length;
     let html = '<header class="top"><div class="eyebrow">10 вопросов · не влияет на расписание</div><h1>Тест</h1></header>';
     if (n < 1) return html + '<div class="panel empty">Сначала нужны слова — пришли их Claude.</div>';
-    html += '<section class="panel">' + topicSelect('quiz-topic', false) +
-      '<button class="mode" data-act="quiz-choice"' + (n < 4 ? ' disabled' : '') + '><b>Выбери перевод</b><span>Слово по-английски и четыре варианта перевода' + (n < 4 ? ' · нужно минимум 4 слова' : '') + '</span></button>' +
-      '<button class="mode" data-act="quiz-type"><b>Напиши слово</b><span>Перевод по-русски — вспомни и напиши английское слово</span></button>' +
-      '<button class="mode" data-act="quiz-listen"' + (canSpeak && n >= 4 ? '' : ' disabled') + '><b>На слух</b><span>Слушаешь произношение и выбираешь слово' + (!canSpeak ? ' · озвучка недоступна' : n < 4 ? ' · нужно минимум 4 слова' : '') + '</span></button>' +
+    html += '<section class="quiz-modes">' + topicSelect('quiz-topic', false) +
+      '<button class="mode" data-act="quiz-choice"' + (n < 4 ? ' disabled' : '') + '><i class="mode-ic m1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1.5"/><rect x="3" y="11" width="18" height="5" rx="1.5"/><path d="M7 20h10"/></svg></i><b>Выбери перевод</b><span>Слово по-английски и четыре варианта перевода' + (n < 4 ? ' · нужно минимум 4 слова' : '') + '</span></button>' +
+      '<button class="mode" data-act="quiz-type"><i class="mode-ic m2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></i><b>Напиши слово</b><span>Перевод по-русски — вспомни и напиши английское слово</span></button>' +
+      '<button class="mode" data-act="quiz-listen"' + (canSpeak && n >= 4 ? '' : ' disabled') + '><i class="mode-ic m3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></i><b>На слух</b><span>Слушаешь произношение и выбираешь слово' + (!canSpeak ? ' · озвучка недоступна' : n < 4 ? ' · нужно минимум 4 слова' : '') + '</span></button>' +
       '</section><p class="small muted" style="margin:0 4px">В тест чаще попадают слова, которые ты знаешь хуже всего.</p>';
     return html;
   }
@@ -414,7 +427,7 @@
       html += groups.map((t) => {
         const g = list.filter((w) => topicOf(w) === t);
         if (!g.length) return '';
-        return '<section class="tgroup"><div class="tgroup-h"><span>' + esc(t) + '</span><em>' + g.length + '</em></div><div class="list">' + g.map(itemHtml).join('') + '</div></section>';
+        return '<section class="tgroup" style="--tc:' + topicColor(t) + '"><div class="tgroup-h"><span>' + esc(t) + '</span><em>' + g.length + '</em></div><div class="list">' + g.map(itemHtml).join('') + '</div></section>';
       }).join('');
     } else {
       html += '<div class="list">' + list.map(itemHtml).join('') + '</div>';
@@ -427,7 +440,7 @@
     if (used.length < 2) return '';
     const c = topicCounts(ws);
     return '<div class="chips topics">' + '<button class="chip" data-dtopic="all" aria-pressed="' + (cur === 'all') + '">Все темы</button>' +
-      used.map((t) => '<button class="chip" data-dtopic="' + esc(t) + '" aria-pressed="' + (cur === t) + '">' + esc(t) + '<em>' + c[t] + '</em></button>').join('') + '</div>';
+      used.map((t) => '<button class="chip" data-dtopic="' + esc(t) + '" aria-pressed="' + (cur === t) + '">' + tdot(t) + esc(t) + '<em>' + c[t] + '</em></button>').join('') + '</div>';
   }
 
   // Блок «добавлено на телефоне»: слова ещё не у Claude и не в Word-файле.
@@ -511,7 +524,7 @@
   }
   function cardFront(w, dir) {
     const isNew = !prog(w.id);
-    const meta = '<div class="icard-meta"><span>' + (dir === 'en' ? 'EN → RU' : 'RU → EN') + (isNew ? ' · новое' : '') + '</span>' + leitner(w) + '</div>';
+    const meta = '<div class="icard-meta"><span class="meta-topic">' + tdot(topicOf(w)) + esc(topicOf(w)) + (isNew ? '<span class="tag new">новое</span>' : '') + '</span>' + leitner(w) + '</div>';
     let body;
     // На карточке только слово, перевод и пример.
     if (dir === 'en') {
