@@ -2,7 +2,7 @@
 /* Мои слова — офлайн-карточки для английских слов.
    Слова: words.json (их добавляет Claude). Прогресс: localStorage этого устройства. */
 (() => {
-  const VERSION = '1.3';
+  const VERSION = '1.4';
   const INTERVALS = [0, 1, 3, 7, 14, 30, 60, 120]; // дни до следующего повтора на уровне 0..7
   const MAX_LVL = 7;
   const LEARNED_LVL = 5;
@@ -306,8 +306,7 @@
   // ---------- views ----------
   function viewHome() {
     const ws = words();
-    const now = new Date();
-    const head = '<header class="top"><div class="eyebrow">' + WDFULL[now.getDay()] + ', ' + now.getDate() + ' ' + MONTHS[now.getMonth()] + '</div><h1>Мои слова</h1></header>';
+    const head = '<header class="top"><h1>Мои слова</h1></header>';
     let html = head;
     if (state.newCount) html += '<div class="news">+' + state.newCount + ' ' + plural(state.newCount, ['новое слово', 'новых слова', 'новых слов']) + ' от Claude</div>';
     html += localPanel(true);
@@ -320,7 +319,7 @@
         '<div class="icard-body"><div class="headword"><div class="hw">ubiquitous</div></div>' +
         '<div class="answer"><div class="tr">вездесущий, повсеместный</div>' +
         '<div class="ex">Smartphones have become <mark>ubiquitous</mark> in daily life.</div></div></div></article>';
-      html += installNote() + syncLine();
+      html += installNote();
       return html;
     }
 
@@ -369,7 +368,7 @@
       return '<div class="day' + (f.n ? '' : ' zero') + '"><b>' + f.n + '</b><span>' + (i === 0 ? 'сег.' : wd) + '</span></div>';
     }).join('') + '</div></section>';
 
-    html += installNote() + syncLine();
+    html += installNote();
     return html;
   }
 
