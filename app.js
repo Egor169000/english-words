@@ -2,7 +2,7 @@
 /* Мои слова — офлайн-карточки для английских слов.
    Слова: words.json (их добавляет Claude). Прогресс: localStorage этого устройства. */
 (() => {
-  const VERSION = '1.1';
+  const VERSION = '1.2';
   const INTERVALS = [0, 1, 3, 7, 14, 30, 60, 120]; // дни до следующего повтора на уровне 0..7
   const MAX_LVL = 7;
   const LEARNED_LVL = 5;
@@ -230,6 +230,7 @@
       if (hadAny && added) state.newCount = added;
       state.sync = r.headers.get('X-From-Cache') ? 'offline' : 'ok';
       if (manual) toast(added ? 'Новых слов: ' + added : 'Новых слов нет');
+      setTimeout(autoFillPending, 300);
     } catch (e) {
       state.sync = navigator.onLine === false ? 'offline' : 'error';
       if (manual) toast(state.sync === 'offline' ? 'Нет интернета — показываю сохранённые слова' : 'Не удалось обновить, попробуй позже');
@@ -599,16 +600,218 @@
   }
 
   // ---------- добавление слова в приложении ----------
+  // ---------- автоперевод и примеры (нужен интернет) ----------
+  // Перевод: Wiktionary (переводы по значениям), если нет — машинный перевод MyMemory.
+  // Примеры: Tatoeba — реальные предложения с русским переводом.
+  const lookupCache = new Map();
+  const POS_RU = { Noun: 'сущ.', Verb: 'гл.', Adjective: 'прил.', Adverb: 'нареч.', Phrase: 'выраж.', Idiom: 'идиома', Preposition: 'предл.', Conjunction: 'союз', 'Prepositional phrase': 'выраж.', Interjection: 'межд.', Pronoun: 'мест.' };
+  const cleanRu = (t) => String(t).replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g, '$1').normalize('NFD').replace(/[̀́]/g, '').normalize('NFC').trim();
+  function parseTrans(en) {
+    const out = [];
+    let gloss = null;
+    for (const line of en.split('\n')) {
+      const top = line.match(/^\{\{trans-top(?:-also)?\|(.*)\}\}\s*$/);
+      if (top) { gloss = top[1].split('|').filter((x) => !/^id=/.test(x)).pop() || ''; continue; }
+      if (/^\{\{trans-bottom/.test(line)) { gloss = null; continue; }
+      if (gloss !== null && /^\*\s*Russian\s*:/.test(line)) {
+        const terms = [];
+        for (const m of line.matchAll(/\{\{tt?\+?\|ru\|([^|}]+)/g)) { const t = cleanRu(m[1]); if (t && !terms.includes(t)) terms.push(t); }
+        if (terms.length) out.push({ gloss, ru: terms });
+      }
+    }
+    return out;
+  }
+  async function wikiLookup(term, signal, depth) {
+    const url = 'https://en.wiktionary.org/w/api.php?action=parse&page=' + encodeURIComponent(term) + '&prop=wikitext&format=json&formatversion=2&redirects=1&origin=*';
+    const d = await fetch(url, { signal }).then((r) => r.json());
+    if (!d || d.error || !d.parse) return null;
+    const t = d.parse.wikitext || '';
+    const i = t.search(/(^|\n)==\s*English\s*==/);
+    if (i < 0) return null;
+    const rest = t.slice(i + 1);
+    const j = rest.slice(12).search(/\n==[^=]/);
+    const en = j < 0 ? rest : rest.slice(0, j + 12);
+    let senses = parseTrans(en);
+    if (depth === 0 && /\{\{(see translation subpage|trans-see)/i.test(en)) {
+      const sub = await wikiLookup(term + '/translations', signal, 1).catch(() => null);
+      if (sub && sub.senses.length) senses = sub.senses.concat(senses);
+    }
+    const ipa = (en.match(/\{\{IPA\|en\|(\/[^/|}]+\/)/) || [])[1] || '';
+    const posH = (en.match(/\n===+\s*(Noun|Verb|Adjective|Adverb|Phrase|Idiom|Preposition|Conjunction|Prepositional phrase|Interjection|Pronoun)\s*===+/) || [])[1];
+    let pos = posH ? POS_RU[posH] : '';
+    if (pos === 'гл.' && /\s/.test(term)) pos = 'фраз. гл.';
+    if (!senses.length && depth === 0) {
+      const lemma = (en.match(/\{\{(?:infl of|inflection of|[a-z -]+ of)\|en\|([^|}]+)/) || en.match(/\{\{en-[a-z -]+ of\|([^|}]+)/) || [])[1];
+      if (lemma && lemma.toLowerCase() !== term.toLowerCase()) {
+        const L = await wikiLookup(lemma, signal, 1).catch(() => null);
+        if (L) return Object.assign(L, { lemma });
+      }
+    }
+    return { senses, ipa, pos };
+  }
+  async function mmLookup(term, signal) {
+    const d = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(term) + '&langpair=en|ru', { signal }).then((r) => r.json());
+    const c = [];
+    const add = (x) => {
+      x = String(x || '').trim().replace(/[.!]+$/, '');
+      if (!x || /[a-z]/i.test(x) || x.length > 40) return;
+      x = x.charAt(0).toLowerCase() + x.slice(1);
+      if (!c.includes(x)) c.push(x);
+    };
+    (d.matches || []).filter((m) => m['created-by'] === 'MT!').forEach((m) => add(m.translation));
+    add(d.responseData && d.responseData.translatedText);
+    (d.matches || []).forEach((m) => add(m.translation));
+    return c.slice(0, 4);
+  }
+  function formsRe(base) {
+    const b = base.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (/\s/.test(base)) return new RegExp(b.replace(/\\? /g, '\\w*\\s+'), 'i');
+    const stem = b.length > 3 ? b.replace(/(e|y)$/, '') : b;
+    return new RegExp('\\b(' + b + '|' + stem + ")\\w*", 'i');
+  }
+  async function exampleLookup(term, signal) {
+    const base = term.replace(/^to /i, '');
+    const q = /\s/.test(base) ? '"' + base + '"' : base;
+    const d = await fetch('https://api.tatoeba.org/unstable/sentences?lang=eng&q=' + encodeURIComponent(q) + '&trans:lang=rus&sort=relevance&limit=30', { signal }).then((r) => r.json());
+    const list = (d.data || []).map((x) => {
+      const tr = [].concat(x.translations || []).flat().find((y) => y && y.lang === 'rus');
+      return { en: x.text, ru: tr ? tr.text : '' };
+    }).filter((x) => x.ru && x.en.length <= 140);
+    const re = formsRe(base);
+    const exact = list.filter((x) => re.test(x.en));
+    const pool = (exact.length ? exact : list).sort((a, b) => Math.abs(a.en.length - 55) - Math.abs(b.en.length - 55));
+    return pool.slice(0, 3);
+  }
+  async function lookupWord(word, signal) {
+    const term = word.trim().replace(/\s+/g, ' ');
+    const key = term.toLowerCase();
+    if (lookupCache.has(key)) return lookupCache.get(key);
+    const page = /[A-Z]{2,}/.test(term) ? term : key;
+    const res = { tr: [], options: [], ipa: '', pos: '', lemma: '', source: '', examples: [] };
+    const [wiki, exs] = await Promise.all([
+      wikiLookup(page.replace(/^to /, ''), signal, 0).catch((e) => { if (e && e.name === 'AbortError') throw e; return null; }),
+      exampleLookup(term, signal).catch((e) => { if (e && e.name === 'AbortError') throw e; return []; }),
+    ]);
+    res.examples = exs || [];
+    if (wiki) {
+      res.ipa = wiki.ipa || ''; res.pos = wiki.pos || ''; res.lemma = wiki.lemma || '';
+      const all = [];
+      wiki.senses.slice(0, 8).forEach((s) => s.ru.forEach((r) => { if (!all.includes(r)) all.push(r); }));
+      const pick = [];
+      wiki.senses.slice(0, 4).forEach((s, i) => s.ru.slice(0, i === 0 ? 2 : 1).forEach((r) => { if (!pick.includes(r) && pick.length < 3) pick.push(r); }));
+      if (pick.length) { res.tr = pick; res.options = all.slice(0, 8); res.source = 'Wiktionary'; }
+    }
+    if (!res.tr.length) {
+      const mm = await mmLookup(term, signal).catch((e) => { if (e && e.name === 'AbortError') throw e; return []; });
+      if (mm.length) { res.tr = mm.slice(0, 2); res.options = mm; res.source = 'машинный перевод'; }
+    }
+    if (res.tr.length || res.examples.length) lookupCache.set(key, res);
+    return res;
+  }
+
+  let lookupTimer = null, lookupCtl = null;
+  const addUI = { autoTr: '', res: null, pickedEx: null };
+  function scheduleLookup(immediate) {
+    clearTimeout(lookupTimer);
+    const run = () => runLookup();
+    if (immediate) run(); else lookupTimer = setTimeout(run, 650);
+  }
+  async function runLookup() {
+    const wi = $('#add-word'); if (!wi) return;
+    const word = wi.value.trim();
+    const box = $('#add-sugg'), exBox = $('#add-exs');
+    if (lookupCtl) lookupCtl.abort();
+    addUI.res = null;
+    if (word.length < 2 || !/[a-z]/i.test(word)) { box.innerHTML = ''; exBox.innerHTML = ''; return; }
+    if (navigator.onLine === false) {
+      box.innerHTML = '<p class="sugg-status">Без интернета перевод не подобрать. Сохрани так — переведу сам, когда появится сеть.</p>';
+      exBox.innerHTML = '';
+      return;
+    }
+    const ctl = lookupCtl = new AbortController();
+    box.innerHTML = '<p class="sugg-status">Подбираю перевод…</p>';
+    try {
+      const res = await lookupWord(word, ctl.signal);
+      if (ctl.signal.aborted || !$('#add-word') || $('#add-word').value.trim() !== word) return;
+      addUI.res = res;
+      const ti = $('#add-tr');
+      if (res.tr.length && (!ti.value.trim() || ti.value === addUI.autoTr)) { ti.value = res.tr.join(', '); addUI.autoTr = ti.value; }
+      renderSugg();
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+      box.innerHTML = '<p class="sugg-status">Не получилось подобрать перевод. Впиши сам или оставь пустым.</p>';
+    }
+  }
+  function renderSugg() {
+    const res = addUI.res; const box = $('#add-sugg'), exBox = $('#add-exs');
+    if (!res || !box) return;
+    const ti = $('#add-tr');
+    const cur = ti.value.split(',').map((x) => x.trim()).filter(Boolean);
+    let h = '';
+    if (res.options.length) {
+      h += '<div class="chips wrap">' + res.options.map((o) => '<button type="button" class="chip" data-trchip="' + esc(o) + '" aria-pressed="' + cur.includes(o) + '">' + esc(o) + '</button>').join('') + '</div>' +
+        '<p class="sugg-status">' + (res.source === 'Wiktionary' ? 'Варианты из Wiktionary — нажми, чтобы добавить или убрать' : 'Машинный перевод — проверь его') + '</p>';
+    } else {
+      h += '<p class="sugg-status">Перевод не нашёл — впиши сам или оставь пустым, переведёт Claude.</p>';
+    }
+    if (res.lemma && norm(res.lemma) !== norm($('#add-word').value)) h += '<button type="button" class="btn ghost" data-lemma="' + esc(res.lemma) + '" style="padding-left:0">Записать в словарной форме: ' + esc(res.lemma) + '</button>';
+    box.innerHTML = h;
+    exBox.innerHTML = res.examples.length
+      ? '<div class="ex-sugg"><span class="sugg-status">Примеры — нажми, чтобы выбрать</span>' + res.examples.map((x, i) =>
+        '<button type="button" class="ex-opt" data-expick="' + i + '" aria-pressed="' + (addUI.pickedEx && addUI.pickedEx.en === x.en && $('#add-ex').value === x.en) + '"><span class="ex">' + fmtEx(x.en, res.lemma || $('#add-word').value) + '</span><span class="ex-ru">' + esc(x.ru) + '</span></button>').join('') + '</div>'
+      : '';
+  }
+  function toggleTrChip(o) {
+    const ti = $('#add-tr');
+    let cur = ti.value.split(',').map((x) => x.trim()).filter(Boolean);
+    cur = cur.includes(o) ? cur.filter((x) => x !== o) : cur.concat(o);
+    ti.value = cur.join(', ');
+    addUI.autoTr = ti.value;
+    renderSugg();
+  }
+  function pickExample(i) {
+    const x = addUI.res && addUI.res.examples[i]; if (!x) return;
+    const ei = $('#add-ex');
+    if (addUI.pickedEx && addUI.pickedEx.en === x.en && ei.value === x.en) { ei.value = ''; addUI.pickedEx = null; }
+    else { ei.value = x.en; addUI.pickedEx = x; }
+    renderSugg();
+  }
+
+  // Слова, добавленные без интернета, переводим, когда сеть появилась.
+  let autoFilling = false;
+  async function autoFillPending() {
+    if (autoFilling || navigator.onLine === false) return;
+    const list = pendingLocal();
+    if (!list.length) return;
+    autoFilling = true;
+    let n = 0;
+    for (const l of list) {
+      try {
+        const res = await lookupWord(l.word);
+        const cur = state.local.find((x) => x.id === l.id);
+        if (!cur || cur.tr || !res.tr.length) continue;
+        cur.tr = res.tr.join(', '); cur.auto = true;
+        if (res.ipa && !cur.ipa) cur.ipa = res.ipa;
+        if (res.pos && !cur.pos) cur.pos = res.pos;
+        if (!cur.ex && res.examples[0]) { cur.ex = res.examples[0].en; cur.exRu = res.examples[0].ru; cur.exAuto = true; }
+        n++;
+      } catch (e) { /* попробуем в следующий раз */ }
+    }
+    autoFilling = false;
+    if (n) { saveLocal(); toast('Перевёл ' + n + ' ' + plural(n, ['слово', 'слова', 'слов']) + ', добавленных без интернета'); if (!session && !quiz && !state.addOpen) render(); }
+  }
+
   function openAdd() {
     state.addOpen = true;
+    addUI.autoTr = ''; addUI.res = null; addUI.pickedEx = null;
     openOverlay();
     $('#overlay').innerHTML = '<div class="sheet"><div class="sheet-top"><button class="icon-btn" data-act="close" aria-label="Закрыть">' + ICON.close + '</button><h2 style="flex:1">Новое слово</h2></div><div id="add-dup"></div>' +
       '<form id="add-form" class="panel" autocomplete="off">' +
       '<div class="setting"><label for="add-word">Слово или выражение</label><input class="field" id="add-word" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="например, ubiquitous"></div>' +
-      '<div class="setting"><label for="add-tr">Перевод</label><input class="field sm" id="add-tr" enterkeyhint="next" placeholder="можно оставить пустым — переведёт Claude"></div>' +
-      '<div class="setting"><label for="add-ex">Где встретил</label><textarea class="field sm" id="add-ex" rows="3" placeholder="предложение с этим словом (необязательно)"></textarea></div>' +
+      '<div class="setting"><label for="add-tr">Перевод</label><input class="field sm" id="add-tr" enterkeyhint="next" placeholder="подставится сам, можно поправить"><div id="add-sugg"></div></div>' +
+      '<div class="setting"><label for="add-ex">Пример</label><textarea class="field sm" id="add-ex" rows="3" placeholder="предложение, где встретил, или выбери пример ниже"></textarea><div id="add-exs"></div></div>' +
       '<button class="btn primary block" type="submit">Сохранить</button>' +
-      '<p class="small muted" style="margin:0">С переводом слово сразу попадёт в повторение. Без перевода — подождёт, пока ты отправишь его Claude.</p>' +
+      '<p class="small muted" style="margin:0">С переводом слово сразу попадёт в повторение. Чтобы оно попало в Word-файл, отправь его Claude из «Словаря».</p>' +
       '</form><div id="add-saved" class="small muted" style="text-align:center"></div></div>';
     setTimeout(() => { const i = $('#add-word'); if (i) i.focus(); }, 60);
   }
@@ -631,6 +834,13 @@
     const tr = ti.value.trim(); const ex = ei.value.trim();
     if (tr) entry.tr = tr;
     if (ex) entry.ex = ex;
+    const res = addUI.res;
+    if (res && $('#add-word').value.trim() === word) {
+      if (res.ipa) entry.ipa = res.ipa;
+      if (res.pos) entry.pos = res.pos;
+      if (tr && tr === addUI.autoTr) entry.auto = true;
+    }
+    if (ex && addUI.pickedEx && addUI.pickedEx.en === ex) { entry.exRu = addUI.pickedEx.ru; entry.exAuto = true; }
     const existing = findExisting(word);
     if (existing) { state.dup = { entry, existing }; renderDup(); return; }
     commitNew(entry);
@@ -647,6 +857,10 @@
     const wi = $('#add-word'), ti = $('#add-tr'), ei = $('#add-ex');
     if (!wi) return;
     wi.value = ''; ti.value = ''; ei.value = '';
+    addUI.autoTr = ''; addUI.res = null; addUI.pickedEx = null;
+    if (lookupCtl) lookupCtl.abort();
+    const sb = $('#add-sugg'); if (sb) sb.innerHTML = '';
+    const eb = $('#add-exs'); if (eb) eb.innerHTML = '';
     const n = state.local.length;
     $('#add-saved').textContent = n ? 'На телефоне ' + n + ' ' + plural(n, ['слово', 'слова', 'слов']) + ' для Claude' : '';
     wi.focus();
@@ -689,7 +903,8 @@
     const lines = state.local.map((l) => {
       const extra = [];
       if (l.replaces) extra.push('заменить старую карточку');
-      if (l.ex) extra.push('встретил: «' + l.ex + '»');
+      if (l.auto) extra.push('перевод подобран автоматически');
+      if (l.ex) extra.push((l.exAuto ? 'пример: «' : 'встретил: «') + l.ex + '»');
       return '- ' + l.word + (l.tr ? ' — ' + l.tr : '') + (extra.length ? ' (' + extra.join('; ') + ')' : '');
     });
     return 'Добавь в «Мои слова»:\n' + lines.join('\n');
@@ -744,8 +959,11 @@
 
   // ---------- events ----------
   document.addEventListener('click', (e) => {
-    const el = e.target.closest('[data-speak],[data-tab],[data-tab-go],[data-act],[data-grade],[data-choice],[data-filter],[data-open],[data-reset],[data-reset-ask],[data-reset-cancel],[data-set],[data-del],[data-del-ask],[data-del-cancel]');
+    const el = e.target.closest('[data-speak],[data-tab],[data-tab-go],[data-act],[data-grade],[data-choice],[data-filter],[data-open],[data-reset],[data-reset-ask],[data-reset-cancel],[data-set],[data-del],[data-del-ask],[data-del-cancel],[data-trchip],[data-expick],[data-lemma]');
     if (!el) return;
+    if (el.dataset.trchip !== undefined) return toggleTrChip(el.dataset.trchip);
+    if (el.dataset.expick !== undefined) return pickExample(Number(el.dataset.expick));
+    if (el.dataset.lemma) { const wi = $('#add-word'); wi.value = el.dataset.lemma; return scheduleLookup(true); }
     if (el.dataset.delAsk) { state.dict.confirmDel = el.dataset.delAsk; return render(); }
     if (el.dataset.delCancel) { state.dict.confirmDel = null; return render(); }
     if (el.dataset.del) {
@@ -806,6 +1024,8 @@
     if (quiz && quiz.mode === 'type' && !quiz.answer) answerType();
   });
   document.addEventListener('input', (e) => {
+    if (e.target.id === 'add-word') { if (state.dup) { state.dup = null; $('#add-dup').innerHTML = ''; } return scheduleLookup(false); }
+    if (e.target.id === 'add-tr' || e.target.id === 'add-ex') return renderSugg();
     if (e.target.id === 'dict-q') {
       state.dict.q = e.target.value;
       const pos = e.target.selectionStart;
@@ -818,7 +1038,8 @@
       if (e.key === 'Escape') closeOverlay();
       // Enter в поле слова/перевода — к следующему полю
       if (e.key === 'Enter' && (e.target.id === 'add-word' || e.target.id === 'add-tr')) {
-        e.preventDefault(); const next = e.target.id === 'add-word' ? '#add-tr' : '#add-ex'; const n = $(next); if (n) n.focus();
+        e.preventDefault(); if (e.target.id === 'add-word') scheduleLookup(true);
+        const next = e.target.id === 'add-word' ? '#add-tr' : '#add-ex'; const n = $(next); if (n) n.focus();
       }
       return;
     }

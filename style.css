@@ -359,3 +359,16 @@ textarea.backup { width: 100%; min-height: 110px; border: 1.5px solid var(--line
 .dup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .dup-actions .btn { font-size: 15px; padding: 10px 8px; }
 .dup-actions .btn:not(.primary) { background: var(--card); color: var(--bad); }
+
+/* ---------- suggestions in the add form ---------- */
+.chips.wrap { flex-wrap: wrap; overflow: visible; }
+.chips.wrap .chip { box-shadow: none; background: var(--card-2); }
+.chips.wrap .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.sugg-status { margin: 0; font-size: 13px; color: var(--muted); }
+.ex-sugg { display: flex; flex-direction: column; gap: 6px; }
+.ex-opt { border: 1.5px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 12px; text-align: left; display: flex; flex-direction: column; gap: 3px; }
+.ex-opt .ex { font-size: 16px; }
+.ex-opt .ex-ru { font-size: 14px; }
+.ex-opt[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+#add-sugg, #add-exs { display: flex; flex-direction: column; gap: 8px; }
+#add-sugg:empty, #add-exs:empty { display: none; }
