@@ -1,4 +1,386 @@
 {
-  "updated": "2026-11-08T17:14:57+03:00",
-  "words": []
+  "updated": "2026-11-08T18:06:57+03:00",
+  "words": [
+    {
+      "id": "accessible",
+      "word": "accessible",
+      "ipa": "/əkˈses.ə.bəl/",
+      "pos": "прил.",
+      "tr": "доступный, легкодоступный",
+      "ex": "Online courses make education more *accessible*.",
+      "exRu": "Онлайн-курсы делают образование более доступным.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "digital-commerce",
+      "word": "digital commerce",
+      "ipa": "/ˈdɪdʒ.ɪ.təl ˈkɒm.ɜːs/",
+      "pos": "сущ.",
+      "tr": "цифровая торговля, онлайн-торговля",
+      "ex": "*Digital commerce* has grown rapidly over the last decade.",
+      "exRu": "Цифровая торговля быстро выросла за последнее десятилетие.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "shift",
+      "word": "shift",
+      "ipa": "/ʃɪft/",
+      "pos": "сущ., гл.",
+      "tr": "сдвиг, перемена; смещаться, меняться",
+      "ex": "Public attention *has shifted* from television to social media.",
+      "exRu": "Внимание публики сместилось с телевидения на соцсети.",
+      "note": "shift — shifted — shifted; a shift in habits — перемена в привычках",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "interaction",
+      "word": "interaction",
+      "ipa": "/ˌɪn.təˈræk.ʃən/",
+      "pos": "сущ.",
+      "tr": "взаимодействие, общение",
+      "ex": "Most of our daily *interaction* now happens online.",
+      "exRu": "Большая часть нашего повседневного общения теперь происходит онлайн.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "dominant-force",
+      "word": "dominant force",
+      "ipa": "/ˈdɒm.ɪ.nənt fɔːs/",
+      "pos": "выраж.",
+      "tr": "доминирующая сила",
+      "ex": "Short videos have become the *dominant force* in online entertainment.",
+      "exRu": "Короткие видео стали доминирующей силой в онлайн-развлечениях.",
+      "note": "мн. ч. dominant forces",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "digital",
+      "word": "digital",
+      "ipa": "/ˈdɪdʒ.ɪ.təl/",
+      "pos": "прил.",
+      "tr": "цифровой",
+      "ex": "We live in a *digital* world.",
+      "exRu": "Мы живём в цифровом мире.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "to-consume",
+      "word": "to consume",
+      "ipa": "/kənˈsjuːm/",
+      "pos": "гл.",
+      "tr": "потреблять",
+      "ex": "Young people *consume* most of their news on their phones.",
+      "exRu": "Молодые люди получают большую часть новостей с телефона.",
+      "note": "consumption — потребление; consumer — потребитель",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "snackable",
+      "word": "snackable",
+      "ipa": "/ˈsnæk.ə.bəl/",
+      "pos": "прил.",
+      "tr": "короткий и лёгкий для восприятия (о контенте)",
+      "ex": "Platforms prefer *snackable* content that takes seconds to watch.",
+      "exRu": "Платформы предпочитают короткий контент, на просмотр которого уходят секунды.",
+      "note": "snackable content — короткий контент «на перекус»",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "to-capture-attention",
+      "word": "to capture attention",
+      "ipa": "/ˈkæp.tʃər əˈten.ʃən/",
+      "pos": "выраж.",
+      "tr": "привлечь внимание, захватить внимание",
+      "ex": "The first three seconds of a video must *capture attention*.",
+      "exRu": "Первые три секунды видео должны захватить внимание.",
+      "note": "capturing attention — привлечение внимания",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "constant-stream",
+      "word": "constant stream",
+      "ipa": "/ˈkɒn.stənt striːm/",
+      "pos": "выраж.",
+      "tr": "непрерывный поток",
+      "ex": "We receive a *constant stream* of notifications.",
+      "exRu": "Мы получаем непрерывный поток уведомлений.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "rapid-fire",
+      "word": "rapid-fire",
+      "ipa": "/ˌræp.ɪdˈfaɪə/",
+      "pos": "прил.",
+      "tr": "стремительный, следующий один за другим",
+      "ex": "The app shows *rapid-fire* clips that last a few seconds each.",
+      "exRu": "Приложение показывает быстро сменяющиеся ролики по несколько секунд.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "to-shorten",
+      "word": "to shorten",
+      "ipa": "/ˈʃɔː.tən/",
+      "pos": "гл.",
+      "tr": "сокращать(ся), укорачивать(ся)",
+      "ex": "Social media may be *shortening* our attention spans.",
+      "exRu": "Соцсети, возможно, сокращают нашу способность концентрироваться.",
+      "note": "shortening — сокращение",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "collective-attention-span",
+      "word": "collective attention span",
+      "ipa": "/kəˈlek.tɪv əˈten.ʃən spæn/",
+      "pos": "выраж.",
+      "tr": "общая способность людей удерживать внимание",
+      "ex": "Researchers say our *collective attention span* is getting shorter.",
+      "exRu": "Исследователи говорят, что наша общая способность удерживать внимание сокращается.",
+      "note": "attention span — время, в течение которого человек может концентрироваться",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "simultaneously",
+      "word": "simultaneously",
+      "ipa": "/ˌsɪm.əlˈteɪ.ni.əs.li/",
+      "pos": "нареч.",
+      "tr": "одновременно",
+      "ex": "Many people watch TV and scroll their phones *simultaneously*.",
+      "exRu": "Многие одновременно смотрят телевизор и листают телефон.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "solitary",
+      "word": "solitary",
+      "ipa": "/ˈsɒl.ɪ.tər.i/",
+      "pos": "прил.",
+      "tr": "одиночный, уединённый, одинокий",
+      "ex": "Gaming used to be a *solitary* activity.",
+      "exRu": "Раньше видеоигры были занятием в одиночку.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "social-hub",
+      "word": "social hub",
+      "ipa": "/ˈsəʊ.ʃəl hʌb/",
+      "pos": "сущ.",
+      "tr": "место общения, центр общественной жизни",
+      "ex": "Online games have become *social hubs* for teenagers.",
+      "exRu": "Онлайн-игры стали местом общения для подростков.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "purely",
+      "word": "purely",
+      "ipa": "/ˈpjʊə.li/",
+      "pos": "нареч.",
+      "tr": "исключительно, только, чисто",
+      "ex": "Some friendships exist *purely* online.",
+      "exRu": "Некоторые дружбы существуют исключительно в интернете.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "digital-realm",
+      "word": "digital realm",
+      "ipa": "/ˈdɪdʒ.ɪ.təl relm/",
+      "pos": "выраж.",
+      "tr": "цифровое пространство, цифровой мир",
+      "ex": "More and more of our lives take place in the *digital realm*.",
+      "exRu": "Всё большая часть нашей жизни проходит в цифровом пространстве.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "rival",
+      "word": "rival",
+      "ipa": "/ˈraɪ.vəl/",
+      "pos": "сущ., гл.",
+      "tr": "соперник, конкурент; соперничать, не уступать",
+      "ex": "Online concerts now *rival* real ones in popularity.",
+      "exRu": "Онлайн-концерты теперь не уступают настоящим по популярности.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "audience",
+      "word": "audience",
+      "ipa": "/ˈɔː.di.əns/",
+      "pos": "сущ.",
+      "tr": "аудитория, зрители, слушатели",
+      "ex": "The video reached an *audience* of millions.",
+      "exRu": "Видео охватило аудиторию в миллионы человек.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "significant",
+      "word": "significant",
+      "ipa": "/sɪɡˈnɪf.ɪ.kənt/",
+      "pos": "прил.",
+      "tr": "значительный, существенный, важный",
+      "ex": "There has been a *significant* increase in online shopping.",
+      "exRu": "Произошёл значительный рост онлайн-покупок.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "e-commerce",
+      "word": "e-commerce",
+      "ipa": "/ˈiːˌkɒm.ɜːs/",
+      "pos": "сущ.",
+      "tr": "электронная коммерция, интернет-торговля",
+      "ex": "*E-commerce* grew rapidly during the pandemic.",
+      "exRu": "Интернет-торговля быстро росла во время пандемии.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "to-evolve",
+      "word": "to evolve",
+      "ipa": "/ɪˈvɒlv/",
+      "pos": "гл.",
+      "tr": "развиваться, эволюционировать",
+      "ex": "Online shopping has *evolved* a lot in recent years.",
+      "exRu": "Онлайн-шопинг сильно изменился за последние годы.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "to-purchase",
+      "word": "to purchase",
+      "ipa": "/ˈpɜː.tʃəs/",
+      "pos": "гл., сущ.",
+      "tr": "покупать, приобретать; покупка",
+      "ex": "More people *purchase* products through social media.",
+      "exRu": "Всё больше людей покупают товары через соцсети.",
+      "note": "purchase products — покупать товары; более формальное, чем buy",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "heavily",
+      "word": "heavily",
+      "ipa": "/ˈhev.əl.i/",
+      "pos": "нареч.",
+      "tr": "сильно, в значительной степени",
+      "ex": "Young buyers rely *heavily* on online reviews.",
+      "exRu": "Молодые покупатели сильно полагаются на отзывы в интернете.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "peer",
+      "word": "peer",
+      "ipa": "/pɪə/",
+      "pos": "сущ.",
+      "tr": "сверстник, ровня, человек своего круга",
+      "ex": "Teenagers often trust their *peers* more than adverts.",
+      "exRu": "Подростки часто доверяют сверстникам больше, чем рекламе.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "endorsement",
+      "word": "endorsement",
+      "ipa": "/ɪnˈdɔːs.mənt/",
+      "pos": "сущ.",
+      "tr": "рекомендация, одобрение, поддержка",
+      "ex": "Peer *endorsements* influence what we buy.",
+      "exRu": "Рекомендации знакомых влияют на то, что мы покупаем.",
+      "note": "peer endorsement — рекомендация от «своих»; celebrity endorsement — реклама со знаменитостью",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "surge",
+      "word": "surge",
+      "ipa": "/sɜːdʒ/",
+      "pos": "сущ., гл.",
+      "tr": "резкий рост, всплеск; резко расти",
+      "ex": "There was a *surge* in online orders before the holidays.",
+      "exRu": "Перед праздниками был всплеск онлайн-заказов.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "to-remain",
+      "word": "to remain",
+      "ipa": "/rɪˈmeɪn/",
+      "pos": "гл.",
+      "tr": "оставаться",
+      "ex": "Privacy *remains* a major concern for users.",
+      "exRu": "Конфиденциальность остаётся главной проблемой для пользователей.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "concern",
+      "word": "concern",
+      "ipa": "/kənˈsɜːn/",
+      "pos": "сущ., гл.",
+      "tr": "беспокойство, озабоченность, проблема; беспокоить",
+      "ex": "Screen time is a growing *concern* for parents.",
+      "exRu": "Время у экрана всё больше беспокоит родителей.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "increasingly",
+      "word": "increasingly",
+      "ipa": "/ɪnˈkriː.sɪŋ.li/",
+      "pos": "нареч.",
+      "tr": "всё более, всё больше",
+      "ex": "Shopping is becoming *increasingly* digital.",
+      "exRu": "Покупки становятся всё более цифровыми.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "fast-paced",
+      "word": "fast-paced",
+      "ipa": "/ˌfɑːstˈpeɪst/",
+      "pos": "прил.",
+      "tr": "быстрый, динамичный, стремительный",
+      "ex": "We live in a *fast-paced* world.",
+      "exRu": "Мы живём в стремительном мире.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "primary",
+      "word": "primary",
+      "ipa": "/ˈpraɪ.mər.i/",
+      "pos": "прил.",
+      "tr": "основной, главный, первичный",
+      "ex": "For many teenagers, social media is the *primary* source of news.",
+      "exRu": "Для многих подростков соцсети — основной источник новостей.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "labor-market",
+      "word": "labor market",
+      "ipa": "/ˈleɪ.bə ˌmɑː.kɪt/",
+      "pos": "сущ.",
+      "tr": "рынок труда",
+      "ex": "Digital skills are highly valued in today's *labor market*.",
+      "exRu": "Цифровые навыки высоко ценятся на современном рынке труда.",
+      "note": "брит. написание — labour market",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "digital-evolution",
+      "word": "digital evolution",
+      "ipa": "/ˈdɪdʒ.ɪ.təl ˌiː.vəˈluː.ʃən/",
+      "pos": "выраж.",
+      "tr": "цифровая эволюция, цифровое развитие",
+      "ex": "The *digital evolution* has changed how we work and shop.",
+      "exRu": "Цифровая эволюция изменила то, как мы работаем и делаем покупки.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "camera-angle",
+      "word": "camera angle",
+      "ipa": "/ˈkæm.rə ˌæŋ.ɡəl/",
+      "pos": "сущ.",
+      "tr": "ракурс (съёмки)",
+      "ex": "Quick changes of *camera angles* keep viewers watching.",
+      "exRu": "Быстрая смена ракурсов удерживает зрителей.",
+      "added": "2026-11-08"
+    },
+    {
+      "id": "to-leave-behind",
+      "word": "to leave behind",
+      "ipa": "/liːv bɪˈhaɪnd/",
+      "pos": "фраз. гл.",
+      "tr": "оставить позади, бросить; be left behind — отстать",
+      "ex": "Businesses that ignore social media risk being *left behind*.",
+      "exRu": "Компании, которые игнорируют соцсети, рискуют отстать.",
+      "note": "leave — left — left",
+      "added": "2026-11-08"
+    }
+  ]
 }
